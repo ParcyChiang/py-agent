@@ -97,12 +97,7 @@
                     if (response.success) {
                         // 更新统计信息
                         $('#statsContent').html(`
-                            <p>总记录数: ${response.summary.total_records}</p>
-                            <p>发货日期: ${response.statistics.date}</p>
                             <p>总发货量: ${response.statistics.total_shipments}</p>
-                            <p>已交付: ${response.statistics.delivered}</p>
-                            <p>延迟交付: ${response.statistics.delayed}</p>
-                            <p>准时率: ${response.statistics.on_time_rate.toFixed(2)}%</p>
                             <h4>状态分布:</h4>
                             <ul>
                                 ${Object.entries(response.summary.status_distribution).map(([key, value]) =>

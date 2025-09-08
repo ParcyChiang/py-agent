@@ -155,7 +155,7 @@ class LogisticsDataManager:
             return result
         return None
 
-    def get_all_shipments(self, limit: int = 100) -> List[Dict]:
+    def get_all_shipments(self, limit: int = 10000) -> List[Dict]:
         """获取所有物流信息"""
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
@@ -311,12 +311,12 @@ class OllamaModelHandler:
         """生成每日报告（简化版）"""
         prompt = f"""
         生成物流日报：
-
-        统计：发货{daily_stats.get('total_shipments', 0)}，交付{daily_stats.get('delivered', 0)}，
-              延迟{daily_stats.get('delayed', 0)}，准时率{daily_stats.get('on_time_rate', 0):.1f}%
+        
+         统计：发货{daily_stats.get('total_shipments', 0)}，交付{daily_stats.get('delivered', 0)}，
+               延迟{daily_stats.get('delayed', 0)}，准时率{daily_stats.get('on_time_rate', 0):.1f}%
 
         请用简短文字描述：
-        1. 当日概况（1句话）
+        1. 告诉我发货量最多的是哪一天
         2. 主要问题（最多2点）
         3. 建议（1-2条）
         """

@@ -1,12 +1,14 @@
 ## py-agent搭建Log
 ### v0.01.01
-1.feat(main):更改为qwen:0.5b模型，响应迅速，但是有每日运营无法解答的bug
+1. feat:更改为qwen:0.5b模型，响应迅速
+2. fix:修复了每日运营无法解答的bug
+3. fix:修复了ai只统计前100天的bug
 
 ### v0.01.00
-1.feat(main):网页实现，但是ai响应速度慢
+1. feat:网页实现，但是ai响应速度慢
 
 ### v0.00.02
-1.feat(main):基础代码
+1. feat:基础代码
 
 ### v0.00.01
-1.feat(main):框架搭建
+1. feat:框架搭建

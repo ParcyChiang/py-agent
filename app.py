@@ -57,7 +57,7 @@ async def analyze_data():
     """分析物流数据"""
     try:
         # 获取所有物流数据
-        shipments = data_manager.get_all_shipments(limit=100)
+        shipments = data_manager.get_all_shipments(limit=10000)
 
         if not shipments:
             return jsonify({'success': False, 'message': '没有可分析的数据，请先上传CSV文件'})
