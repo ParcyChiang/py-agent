@@ -1,12 +1,11 @@
-from flask import Flask, render_template, request, jsonify, send_file
 import os
 import asyncio
-from models.data_manager import LogisticsDataManager
-from models.model_handler import OllamaModelHandler
-from utils.helpers import format_ai_response
 import uuid
-import json
-from datetime import datetime
+from flask import Flask, render_template, request, jsonify
+
+# 直接从models模块导入创建函数和类
+from models import create_data_manager, create_model_handler
+from utils import format_ai_response
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -15,9 +14,9 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB限制
 # 确保上传目录存在
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# 初始化组件
-data_manager = LogisticsDataManager()
-model_handler = OllamaModelHandler()
+# 使用工厂函数创建实例
+data_manager = create_data_manager()
+model_handler = create_model_handler()
 
 
 @app.route('/')
