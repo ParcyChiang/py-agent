@@ -307,13 +307,14 @@ class OllamaModelHandler:
     async def analyze_shipment_data(self, shipment_data: Dict) -> Dict:
         """分析物流数据"""
         prompt = f"""
-        请分析以下物流数据并提供见解：
+        你是一个大型分拨中心的运营分析员。基于以下货件信息，按物流中心的现实业务给出可执行洞察：
         {self._format_shipment_data(shipment_data)}
 
-        请用简洁的语言提供：
-        1. 当前状态评估
-        2. 潜在风险（如有）
-        3. 简要建议
+        输出用简洁要点（每点≤20字），包含：
+        1) 运营状态：是否异常、阻塞位置
+        2) 风险预警：延误/错分/逆向等（概率+影响）
+        3) 优先动作：今天需跟进的2-3个动作（含岗位）
+        4) SLA 提醒：是否命中SLA阈值（建议缓解措施）
         """
 
         analysis = await self.generate_response(prompt)
@@ -325,17 +326,19 @@ class OllamaModelHandler:
     async def analyze_bulk_data(self, shipments_data: List[Dict]) -> Dict:
         """批量分析物流数据"""
         prompt = f"""
-        请分析以下物流数据集并提供整体见解：
+        你是转运中心现场的班次值班经理。基于以下全量数据输出面向执行的班次简报：
 
         数据概览：
         - 总记录数: {len(shipments_data)}
         - 状态分布: {self._get_status_distribution(shipments_data)}
         - 平均重量: {self._calculate_average_weight(shipments_data):.2f} kg
 
-       请用简洁的语言提供：
-        1. 运营状况总结（50字内）
-        2. 主要问题和建议（3条以内）
-        3. 关键改进点
+        请严格按以下结构输出（短句要点式）：
+        A. 今日运行态势（拥堵/异常波次/高峰时段）
+        B. 风险清单（TOP3：场地、车辆、干线/支线）
+        C. 产能与人力（分拣线利用率、缺口岗位与时段）
+        D. 关键KPI（SLA命中率、滞留件、问题件、装车准点）
+        E. 行动清单（≤5条，明确“责任岗位+完成时限”）
         """
 
         analysis = await self.generate_response(prompt)
@@ -371,15 +374,16 @@ class OllamaModelHandler:
     async def generate_daily_report(self, daily_stats: Dict, shipments_data: List[Dict]) -> Dict:
         """生成每日报告（简化版）"""
         prompt = f"""
-        生成物流日报：
-        
-         统计：发货{daily_stats.get('total_shipments', 0)}，交付{daily_stats.get('delivered', 0)}，
-               延迟{daily_stats.get('delayed', 0)}，准时率{daily_stats.get('on_time_rate', 0):.1f}%
+        生成运营日报（面向管理层的一页纸）：
 
-        请用简短文字描述：
-        1. 告诉我发货量最多的是哪一天
-        2. 主要问题（最多2点）
-        3. 建议（1-2条）
+        核心统计：发货{daily_stats.get('total_shipments', 0)}，交付{daily_stats.get('delivered', 0)}，
+                 延迟{daily_stats.get('delayed', 0)}，准时率{daily_stats.get('on_time_rate', 0):.1f}%
+
+        输出模块：
+        1) 经营看板：SLA、吞吐、滞留走势（一句话趋势）
+        2) 异常焦点：TOP2异常及影响（金额/客户/区域）
+        3) 纠偏措施：已执行与待执行（负责人+截止时间）
+        4) 明日安排：人车资源与产能计划（风险点）
         """
 
         report = await self.generate_response(prompt)

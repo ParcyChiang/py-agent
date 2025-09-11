@@ -1,5 +1,5 @@
 body {
-    font-family: 'Arial', sans-serif;
+    font-family: 'Inter', 'Arial', sans-serif;
     line-height: 1.6;
     margin: 0;
     padding: 0;
@@ -16,23 +16,23 @@ body {
 header {
     text-align: center;
     margin-bottom: 30px;
-    background-color: #2c3e50;
+    background: linear-gradient(135deg, #0ea5e9 0%, #22c55e 100%);
     color: white;
-    padding: 20px;
-    border-radius: 5px;
+    padding: 28px;
+    border-radius: 12px;
 }
 
 .upload-section, .analysis-section, .shipments-section {
     background: white;
-    padding: 20px;
+    padding: 24px;
     margin-bottom: 20px;
-    border-radius: 5px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.06);
 }
 
 h2 {
     color: #2c3e50;
-    border-bottom: 2px solid #eee;
+    border-bottom: 2px solid #eef2f7;
     padding-bottom: 10px;
 }
 
@@ -41,17 +41,17 @@ h2 {
 }
 
 button {
-    background-color: #3498db;
+    background-color: #111827;
     color: white;
     border: none;
     padding: 10px 15px;
-    border-radius: 4px;
+    border-radius: 8px;
     cursor: pointer;
     font-size: 16px;
 }
 
 button:hover {
-    background-color: #2980b9;
+    background-color: #374151;
 }
 
 .results {
@@ -63,9 +63,9 @@ button:hover {
 
 .stats-card, .report-card {
     background: #f9f9f9;
-    padding: 15px;
-    border-radius: 5px;
-    border-left: 4px solid #3498db;
+    padding: 18px;
+    border-radius: 10px;
+    border-left: 4px solid #0ea5e9;
 }
 
 .report-card {
@@ -76,14 +76,14 @@ button:hover {
     color: #27ae60;
     background: #e8f5e9;
     padding: 10px;
-    border-radius: 4px;
+    border-radius: 8px;
 }
 
 .error {
     color: #e74c3c;
     background: #fdecea;
     padding: 10px;
-    border-radius: 4px;
+    border-radius: 8px;
 }
 
 table {
@@ -113,3 +113,13 @@ ul {
 li {
     margin-bottom: 5px;
 }
+
+.hero { padding: 64px 24px; text-align: center; background: linear-gradient(135deg, #0ea5e9 0%, #22c55e 100%); color: white; border-radius: 16px; }
+.hero h1 { margin: 0 0 12px 0; font-size: 36px; }
+.hero p { opacity: .9; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 24px; }
+.card { background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,.04); }
+.card h3 { margin-top: 0; }
+.nav { display:flex; gap:12px; margin: 16px 0 24px; }
+.nav a { padding: 10px 14px; background:#111827; color:#fff; border-radius:8px; text-decoration:none; }
+.nav a.secondary { background:#374151; }

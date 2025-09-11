@@ -22,6 +22,22 @@ def index():
     """主页面"""
     return render_template('index.html')
 
+@app.route('/page/upload')
+def page_upload():
+    return render_template('upload.html')
+
+@app.route('/page/analyze')
+def page_analyze():
+    return render_template('analyze.html')
+
+@app.route('/page/shipments')
+def page_shipments():
+    return render_template('shipments.html')
+
+@app.route('/page/report')
+def page_report():
+    return render_template('report.html')
+
 
 @app.route('/upload', methods=['POST'])
 def upload_file():

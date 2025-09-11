@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据列表 - 物流智能分析</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border-bottom: 1px solid #e5e7eb; padding: 10px; text-align: left; }
+        th { background: #f9fafb; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>物流数据列表</h1>
+            <p>浏览导入后的货件数据。</p>
+        </header>
+
+        <nav class="nav">
+            <a href="/">首页</a>
+            <a class="secondary" href="/page/upload">数据导入</a>
+            <a class="secondary" href="/page/analyze">运营分析</a>
+            <a class="secondary" href="/page/shipments">数据列表</a>
+            <a class="secondary" href="/page/report">日报中心</a>
+        </nav>
+
+        <div class="shipments-section">
+            <button id="loadShipmentsBtn">加载物流数据</button>
+            <div id="shipmentsList">点击“加载物流数据”获取列表</div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(function(){
+            $('#loadShipmentsBtn').on('click', function() {
+                $('#shipmentsList').html('加载中...');
+                $.getJSON('/shipments?limit=50', function(response) {
+                    if (response.success && response.data.length > 0) {
+                        var html = '<table><tr><th>ID</th><th>起始地</th><th>目的地</th><th>状态</th><th>重量 (kg)</th></tr>';
+                        response.data.forEach(function(shipment){
+                            html += '<tr>'+
+                                '<td>'+shipment.id+'</td>'+
+                                '<td>'+shipment.origin+'</td>'+
+                                '<td>'+shipment.destination+'</td>'+
+                                '<td>'+shipment.status+'</td>'+
+                                '<td>'+shipment.weight+'</td>'+
+                            '</tr>';
+                        });
+                        html += '</table>';
+                        $('#shipmentsList').html(html);
+                    } else {
+                        $('#shipmentsList').html('没有数据，请先上传CSV文件');
+                    }
+                }).fail(function(){
+                    $('#shipmentsList').html('加载失败，请重试');
+                });
+            });
+        });
+    </script>
+</body>
+</html>
+

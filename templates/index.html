@@ -3,154 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>快递物流智能分析系统</title>
+    <title>物流智能分析 - 首页</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="container">
         <header>
             <h1>快递物流智能分析系统</h1>
-            <p>基于AI的物流数据分析和优化建议</p>
+            <p>面向运营的AI分析与决策助手</p>
         </header>
 
-        <div class="upload-section">
-            <h2>上传CSV文件</h2>
-            <form id="uploadForm" enctype="multipart/form-data">
-                <div class="file-input">
-                    <input type="file" id="file" name="file" accept=".csv" required>
-                    <label for="file">选择CSV文件</label>
-                </div>
-                <button type="submit">上传并导入数据</button>
-            </form>
-            <div id="uploadResult"></div>
-        </div>
+        <nav class="nav">
+            <a href="/">首页</a>
+            <a class="secondary" href="/page/upload">数据导入</a>
+            <a class="secondary" href="/page/analyze">运营分析</a>
+            <a class="secondary" href="/page/shipments">数据列表</a>
+            <a class="secondary" href="/page/report">日报中心</a>
+        </nav>
 
-        <div class="analysis-section">
-            <h2>数据分析</h2>
-            <button id="analyzeBtn">分析物流数据</button>
+        <section class="hero">
+            <h1>提升分拨效率，降低异常与延误</h1>
+            <p>一键导入，一键分析，获得面向执行的运营洞察与行动清单。</p>
+        </section>
 
-            <div class="results">
-                <div class="stats-card">
-                    <h3>数据概览</h3>
-                    <div id="statsContent">请先上传数据</div>
-                </div>
-
-                <div class="report-card">
-                    <h3>AI分析报告</h3>
-                    <div id="analysisContent">请点击"分析物流数据"按钮生成报告</div>
-                </div>
-
-                <div class="report-card">
-                    <h3>每日运营报告</h3>
-                    <div id="dailyReportContent">请点击"分析物流数据"按钮生成报告</div>
-                </div>
+        <section class="grid">
+            <div class="card">
+                <h3>覆盖导入</h3>
+                <p>上传CSV后自动清空旧数据，保持一次性会话一致性。</p>
             </div>
-        </div>
-
-        <div class="shipments-section">
-            <h2>物流数据列表</h2>
-            <button id="loadShipmentsBtn">加载物流数据</button>
-            <div id="shipmentsList"></div>
-        </div>
+            <div class="card">
+                <h3>运营洞察</h3>
+                <p>针对现场环节输出可执行要点与岗位分工。</p>
+            </div>
+            <div class="card">
+                <h3>日报中心</h3>
+                <p>面向管理层的一页纸经营看板与行动追踪。</p>
+            </div>
+            <div class="card">
+                <h3>数据总览</h3>
+                <p>状态分布、KPI与趋势快速浏览。</p>
+            </div>
+        </section>
     </div>
-
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script>
-        $(document).ready(function() {
-            // 文件上传处理
-            $('#uploadForm').on('submit', function(e) {
-                e.preventDefault();
-                var formData = new FormData(this);
-
-                $.ajax({
-                    url: '/upload',
-                    type: 'POST',
-                    data: formData,
-                    processData: false,
-                    contentType: false,
-                    success: function(response) {
-                        if (response.success) {
-                            $('#uploadResult').html(`
-                                <div class="success">${response.message}</div>
-                                <p>导入记录数: ${response.count}</p>
-                            `);
-                        } else {
-                            $('#uploadResult').html(`
-                                <div class="error">${response.message}</div>
-                            `);
-                        }
-                    },
-                    error: function() {
-                        $('#uploadResult').html(`
-                            <div class="error">上传失败，请重试</div>
-                        `);
-                    }
-                });
-            });
-
-            // 分析数据
-            $('#analyzeBtn').on('click', function() {
-                $('#analysisContent').html('分析中，请稍候...');
-                $('#dailyReportContent').html('生成报告中...');
-
-                $.getJSON('/analyze', function(response) {
-                    if (response.success) {
-                        // 更新统计信息
-                        $('#statsContent').html(`
-                            <p>总发货量: ${response.statistics.total_shipments}</p>
-                            <h4>状态分布:</h4>
-                            <ul>
-                                ${Object.entries(response.summary.status_distribution).map(([key, value]) =>
-                                    `<li>${key}: ${value}</li>`
-                                ).join('')}
-                            </ul>
-                        `);
-
-                        // 更新分析报告
-                        $('#analysisContent').html(response.analysis);
-                        $('#dailyReportContent').html(response.daily_report);
-                    } else {
-                        $('#analysisContent').html(`
-                            <div class="error">${response.message}</div>
-                        `);
-                    }
-                }).fail(function() {
-                    $('#analysisContent').html(`
-                        <div class="error">分析失败，请重试</div>
-                    `);
-                });
-            });
-
-            // 加载物流数据
-            $('#loadShipmentsBtn').on('click', function() {
-                $('#shipmentsList').html('加载中...');
-
-                $.getJSON('/shipments?limit=20', function(response) {
-                    if (response.success && response.data.length > 0) {
-                        var html = '<table><tr><th>ID</th><th>起始地</th><th>目的地</th><th>状态</th><th>重量 (kg)</th></tr>';
-
-                        response.data.forEach(function(shipment) {
-                            html += `
-                                <tr>
-                                    <td>${shipment.id}</td>
-                                    <td>${shipment.origin}</td>
-                                    <td>${shipment.destination}</td>
-                                    <td>${shipment.status}</td>
-                                    <td>${shipment.weight}</td>
-                                </tr>
-                            `;
-                        });
-
-                        html += '</table>';
-                        $('#shipmentsList').html(html);
-                    } else {
-                        $('#shipmentsList').html('没有数据，请先上传CSV文件');
-                    }
-                }).fail(function() {
-                    $('#shipmentsList').html('加载失败，请重试');
-                });
-            });
-        });
-    </script>
 </body>
 </html>
