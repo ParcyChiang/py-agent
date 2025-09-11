@@ -124,6 +124,49 @@ class LogisticsDataManager:
         finally:
             conn.close()
 
+    def import_from_csv_bytes(self, file_bytes: bytes) -> Dict[str, Any]:
+        """从内存字节流导入CSV数据（无需落盘）"""
+        try:
+            from io import BytesIO
+
+            df = pd.read_csv(BytesIO(file_bytes))
+            shipments = df.to_dict('records')
+
+            processed_shipments = []
+            for shipment in shipments:
+                processed_shipment = {
+                    'id': str(shipment.get('id', '')),
+                    'origin': str(shipment.get('origin', '')),
+                    'destination': str(shipment.get('destination', '')),
+                    'status': str(shipment.get('status', 'pending')),
+                    'estimated_delivery': shipment.get('estimated_delivery'),
+                    'actual_delivery': shipment.get('actual_delivery'),
+                    'weight': float(shipment.get('weight', 0)),
+                    'dimensions': {
+                        'length': float(shipment.get('length', 0)),
+                        'width': float(shipment.get('width', 0)),
+                        'height': float(shipment.get('height', 0))
+                    },
+                    'customer_id': str(shipment.get('customer_id', ''))
+                }
+                processed_shipments.append(processed_shipment)
+
+            # 覆盖导入
+            self.clear_all_data()
+            self.bulk_insert_shipments(processed_shipments)
+
+            return {
+                "success": True,
+                "message": f"成功导入 {len(processed_shipments)} 条物流数据",
+                "count": len(processed_shipments)
+            }
+        except Exception as e:
+            logger.error(f"从字节流导入CSV失败: {e}")
+            return {
+                "success": False,
+                "message": f"导入失败: {str(e)}"
+            }
+
     def bulk_insert_shipments(self, shipments: List[Dict]):
         """批量插入物流数据"""
         conn = sqlite3.connect(self.db_path)

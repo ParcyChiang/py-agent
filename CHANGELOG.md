@@ -1,6 +1,7 @@
 ## py-agent搭建Log
 ### v0.01.02
 1. feat:每次导入的 csv 都能被运行,但是 upload 文件夹还不能被解决
+2. fix:移除了 uploads 文件夹
 
 ### v0.01.01
 1. feat:更改为qwen:0.5b模型，响应迅速
