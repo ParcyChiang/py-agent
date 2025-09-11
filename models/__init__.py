@@ -91,6 +91,8 @@ class LogisticsDataManager:
                 }
                 processed_shipments.append(processed_shipment)
 
+            # 覆盖导入：清空旧数据再写入
+            self.clear_all_data()
             self.bulk_insert_shipments(processed_shipments)
 
             return {
@@ -105,6 +107,22 @@ class LogisticsDataManager:
                 "success": False,
                 "message": f"导入失败: {str(e)}"
             }
+
+    def clear_all_data(self) -> None:
+        """清空所有数据（一次性 Agent 覆盖导入场景）"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        try:
+            # 先清空事件表，再清空主表
+            cursor.execute('DELETE FROM shipment_events')
+            cursor.execute('DELETE FROM shipments')
+            conn.commit()
+        except Exception as e:
+            logger.error(f"清空数据失败: {e}")
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
 
     def bulk_insert_shipments(self, shipments: List[Dict]):
         """批量插入物流数据"""

@@ -1,6 +1,8 @@
 import os
 import asyncio
 import uuid
+import atexit
+import signal
 from flask import Flask, render_template, request, jsonify
 
 # 直接从models模块导入创建函数和类
@@ -13,6 +15,41 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB限制
 
 # 确保上传目录存在
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+# 启动时清理上传目录中的残留CSV文件
+def _cleanup_upload_folder(upload_folder: str) -> None:
+    try:
+        for entry_name in os.listdir(upload_folder):
+            if entry_name.lower().endswith('.csv'):
+                entry_path = os.path.join(upload_folder, entry_name)
+                try:
+                    if os.path.isfile(entry_path):
+                        os.remove(entry_path)
+                except Exception:
+                    # 忽略单个文件删除失败，避免阻断启动
+                    pass
+    except FileNotFoundError:
+        pass
+
+_cleanup_upload_folder(app.config['UPLOAD_FOLDER'])
+
+# 进程退出时清理 uploads 目录
+def _register_shutdown_cleanup(upload_folder: str) -> None:
+    def _on_exit(*_):
+        try:
+            _cleanup_upload_folder(upload_folder)
+        except Exception:
+            pass
+
+    atexit.register(_on_exit)
+    try:
+        signal.signal(signal.SIGINT, lambda *args: (_on_exit(), os._exit(0)))
+        signal.signal(signal.SIGTERM, lambda *args: (_on_exit(), os._exit(0)))
+    except Exception:
+        # 某些平台/线程环境下可能不支持
+        pass
+
+_register_shutdown_cleanup(app.config['UPLOAD_FOLDER'])
 
 # 使用工厂函数创建实例
 data_manager = create_data_manager()
@@ -35,19 +72,23 @@ def upload_file():
     if file.filename == '':
         return jsonify({'success': False, 'message': '没有选择文件'})
 
-    if file and file.filename.endswith('.csv'):
+    if file and file.filename.lower().endswith('.csv'):
         # 保存文件
         filename = f"{uuid.uuid4().hex}_{file.filename}"
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
 
-        # 导入数据
-        result = data_manager.import_from_csv(filepath)
-
-        # 清理上传的文件
-        os.remove(filepath)
-
-        return jsonify(result)
+        # 导入数据并确保无论成功失败都清理临时文件
+        try:
+            result = data_manager.import_from_csv(filepath)
+            return jsonify(result)
+        finally:
+            try:
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+            except Exception:
+                # 忽略清理失败
+                pass
 
     return jsonify({'success': False, 'message': '只支持CSV文件'})
 
