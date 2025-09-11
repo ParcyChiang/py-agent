@@ -1,4 +1,82 @@
 # py-agent
-personal graduation project
+
+一个用于分析与可视化物流运输数据的轻量级 Web 应用（Flask）。
+
+## 功能特性
+- **数据上传**：支持上传 CSV 物流数据并入库分析
+- **可视化与报表**：在 `report`、`analyze` 页面查看统计与图表
+- **发运记录浏览**：`shipments` 页面分页查看与筛选
+- **示例数据生成**：`csv_gen/generate_logistics_data.py` 可批量生成样例 CSV
+
+## 环境要求
+- Python 3.9+（建议 3.10/3.11）
+- macOS / Linux / Windows 任一
+
+## 安装与启动
+1. 克隆仓库
+   ```bash
+   git clone <your-repo-url>.git
+   cd py-agent
+   ```
+2. 建议使用虚拟环境
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate  # Windows 使用: .venv\\Scripts\\activate
+   ```
+3. 安装依赖
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. 运行应用
+   ```bash
+   python app.py
+   ```
+   默认在 `http://127.0.0.1:5000` 启动。访问首页以进入各功能页面。
+
+## 目录结构
+```text
+py-agent/
+├─ app.py                     # Flask 入口
+├─ models/                    # 数据模型与数据库相关
+├─ templates/                 # 前端模板 (Jinja2)
+├─ static/                    # 静态资源
+├─ csv_gen/                   # 示例数据与生成脚本
+├─ logistics.db               # SQLite 数据库（开发环境）
+├─ requirements.txt           # Python 依赖
+├─ CHANGELOG.md
+└─ README.md
+```
+
+## 数据与数据库
+- 项目默认使用 SQLite 数据库文件 `logistics.db` 存储数据。
+- 为避免将本地数据提交到远程仓库，请将 `logistics.db` 加入 `.gitignore`（本 README 任务已涵盖）。
+- 首次运行时，如果数据库或表不存在，应用会在需要时自动创建（具体逻辑见 `models/__init__.py`）。
+
+## 上传与示例数据
+- 你可以在页面中上传 CSV 文件进行分析，或使用 `csv_gen` 目录下的样例：
+  - `logistics_sample_100.csv`
+  - `logistics_sample_1000.csv`
+  - `logistics_sample_5000.csv`
+  - `logistics_sample_10000.csv`
+- 也可以通过脚本生成自定义规模数据：
+  ```bash
+  python csv_gen/generate_logistics_data.py --rows 20000 --out my_logistics.csv
+  ```
+
+## 常见问题
+- 应用无法启动或端口占用：修改 `app.py` 中的端口，或结束占用进程后重试。
+- 中文/编码问题：确保 CSV 为 UTF-8 编码。
+- 依赖安装失败：请升级 `pip`，或在虚拟环境中重新安装。
+
+## 开发建议
+- 提交前请确保未将 `logistics.db`、`.DS_Store`、临时文件加入版本库。
+- 建议使用 `black` / `flake8` 等工具进行格式化与静态检查（可按需添加到 `requirements.txt`）。
+
+## 许可证
+本项目仅供学习与研究使用。若要商用，请自行评估并补充许可证条款。
+
+## 致谢
+- Flask 与 Jinja2 社区
+- 随机数据与可视化相关开源生态
 
 
