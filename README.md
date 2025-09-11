@@ -15,8 +15,7 @@
 ## 安装与启动
 1. 克隆仓库
    ```bash
-   git clone <your-repo-url>.git
-   cd py-agent
+   git clone git@github.com:ParcyChiang/py-agent.git
    ```
 2. 建议使用虚拟环境
    ```bash
@@ -27,7 +26,11 @@
    ```bash
    pip install -r requirements.txt
    ```
-4. 运行应用
+4. #### 下载模型(重要!!!!!!)
+    ```bash
+   ollama pull qwen:0.5b
+   ```
+5. 运行应用
    ```bash
    python app.py
    ```
@@ -49,19 +52,18 @@ py-agent/
 
 ## 数据与数据库
 - 项目默认使用 SQLite 数据库文件 `logistics.db` 存储数据。
-- 为避免将本地数据提交到远程仓库，请将 `logistics.db` 加入 `.gitignore`（本 README 任务已涵盖）。
 - 首次运行时，如果数据库或表不存在，应用会在需要时自动创建（具体逻辑见 `models/__init__.py`）。
 
 ## 上传与示例数据
+- 通过脚本生成自定义规模数据：
+  ```bash
+  python csv_gen/generate_logistics_data.py --rows 20000 --out my_logistics.csv
+  ```
 - 你可以在页面中上传 CSV 文件进行分析，或使用 `csv_gen` 目录下的样例：
   - `logistics_sample_100.csv`
   - `logistics_sample_1000.csv`
   - `logistics_sample_5000.csv`
   - `logistics_sample_10000.csv`
-- 也可以通过脚本生成自定义规模数据：
-  ```bash
-  python csv_gen/generate_logistics_data.py --rows 20000 --out my_logistics.csv
-  ```
 
 ## 常见问题
 - 应用无法启动或端口占用：修改 `app.py` 中的端口，或结束占用进程后重试。
