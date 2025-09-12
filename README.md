@@ -44,6 +44,7 @@ py-agent/
 ├─ templates/                 # 前端模板 (Jinja2)
 ├─ static/                    # 静态资源
 ├─ csv_gen/                   # 示例数据与生成脚本
+├─ code_gen/                  # Python 代码生成演示函数
 ├─ logistics.db               # SQLite 数据库（开发环境）
 ├─ requirements.txt           # Python 依赖
 ├─ CHANGELOG.md
@@ -64,21 +65,5 @@ py-agent/
   - `logistics_sample_1000.csv`
   - `logistics_sample_5000.csv`
   - `logistics_sample_10000.csv`
-
-## 常见问题
-- 应用无法启动或端口占用：修改 `app.py` 中的端口，或结束占用进程后重试。
-- 中文/编码问题：确保 CSV 为 UTF-8 编码。
-- 依赖安装失败：请升级 `pip`，或在虚拟环境中重新安装。
-
-## 开发建议
-- 提交前请确保未将 `logistics.db`、`.DS_Store`、临时文件加入版本库。
-- 建议使用 `black` / `flake8` 等工具进行格式化与静态检查（可按需添加到 `requirements.txt`）。
-
-## 许可证
-本项目仅供学习与研究使用。若要商用，请自行评估并补充许可证条款。
-
-## 致谢
-- Flask 与 Jinja2 社区
-- 随机数据与可视化相关开源生态
 
 
