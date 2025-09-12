@@ -1,7 +1,8 @@
 # models/__init__.py
 import json
-import sqlite3
+import os
 
+import pymysql
 import ollama
 import pandas as pd
 import logging
@@ -11,9 +12,21 @@ from datetime import datetime
 logger = logging.getLogger("LogisticsAgent")
 
 
-def create_data_manager(db_path: str = "logistics.db"):
-    """创建并返回LogisticsDataManager实例"""
-    return LogisticsDataManager(db_path)
+def create_data_manager():
+    """创建并返回基于 MySQL 的 LogisticsDataManager 实例"""
+    mysql_host = os.getenv("MYSQL_HOST", "127.0.0.1")
+    mysql_port = int(os.getenv("MYSQL_PORT", "3306"))
+    mysql_user = os.getenv("MYSQL_USER", "root")
+    mysql_password = os.getenv("MYSQL_PASSWORD", "rootroot")
+    mysql_db = os.getenv("MYSQL_DATABASE", "logistics")
+
+    return LogisticsDataManager(
+        host=mysql_host,
+        port=mysql_port,
+        user=mysql_user,
+        password=mysql_password,
+        database=mysql_db,
+    )
 
 
 def create_model_handler(model_name: str = "qwen:0.5b"):
@@ -22,57 +35,97 @@ def create_model_handler(model_name: str = "qwen:0.5b"):
 
 
 class LogisticsDataManager:
-    """物流数据管理器，处理大量物流数据"""
+    """物流数据管理器，使用 MySQL 存储数据"""
 
-    def __init__(self, db_path: str = "logistics.db"):
-        self.db_path = db_path
+    def __init__(self, host: str, port: int, user: str, password: str, database: str):
+        self.host = host
+        self.port = port
+        self.user = user
+        self.password = password
+        self.database = database
+        self._ensure_database()
         self._init_database()
 
+    def _get_connection(self, with_db: bool = True):
+        return pymysql.connect(
+            host=self.host,
+            port=self.port,
+            user=self.user,
+            password=self.password,
+            database=self.database if with_db else None,
+            charset="utf8mb4",
+            cursorclass=pymysql.cursors.DictCursor,
+            autocommit=False,
+        )
+
+    def _ensure_database(self):
+        """确保数据库存在"""
+        conn = pymysql.connect(
+            host=self.host,
+            port=self.port,
+            user=self.user,
+            password=self.password,
+            charset="utf8mb4",
+            cursorclass=pymysql.cursors.DictCursor,
+            autocommit=True,
+        )
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    f"CREATE DATABASE IF NOT EXISTS `{self.database}` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+                )
+        finally:
+            conn.close()
+
     def _init_database(self):
-        """初始化数据库"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+        """初始化数据库（表结构）"""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS shipments (
+                        id VARCHAR(128) PRIMARY KEY,
+                        origin VARCHAR(255),
+                        destination VARCHAR(255),
+                        origin_city VARCHAR(255),
+                        destination_city VARCHAR(255),
+                        status VARCHAR(64),
+                        estimated_delivery DATE,
+                        actual_delivery DATE,
+                        weight DOUBLE,
+                        dimensions TEXT,
+                        customer_id VARCHAR(128),
+                        courier_company VARCHAR(255),
+                        courier VARCHAR(255),
+                        package_type VARCHAR(128),
+                        priority VARCHAR(64),
+                        customer_type VARCHAR(128),
+                        payment_method VARCHAR(128),
+                        shipping_fee DOUBLE,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                    """
+                )
 
-        # 创建物流数据表
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS shipments (
-            id TEXT PRIMARY KEY,
-            origin TEXT,
-            destination TEXT,
-            origin_city TEXT,
-            destination_city TEXT,
-            status TEXT,
-            estimated_delivery DATE,
-            actual_delivery DATE,
-            weight REAL,
-            dimensions TEXT,
-            customer_id TEXT,
-            courier_company TEXT,
-            courier TEXT,
-            package_type TEXT,
-            priority TEXT,
-            customer_type TEXT,
-            payment_method TEXT,
-            shipping_fee REAL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-        ''')
-
-        # 创建物流事件表
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS shipment_events (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            shipment_id TEXT,
-            event_type TEXT,
-            location TEXT,
-            description TEXT,
-            timestamp TIMESTAMP,
-            FOREIGN KEY (shipment_id) REFERENCES shipments (id)
-        )
-        ''')
-
-        conn.commit()
-        conn.close()
+                cursor.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS shipment_events (
+                        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        shipment_id VARCHAR(128),
+                        event_type VARCHAR(128),
+                        location VARCHAR(255),
+                        description TEXT,
+                        timestamp DATETIME,
+                        CONSTRAINT fk_shipment
+                            FOREIGN KEY (shipment_id) REFERENCES shipments(id)
+                            ON DELETE CASCADE
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                    """
+                )
+            conn.commit()
+        finally:
+            conn.close()
 
     def import_from_csv(self, file_path: str) -> Dict[str, Any]:
         """从CSV文件导入数据"""
@@ -170,7 +223,7 @@ class LogisticsDataManager:
 
     def clear_all_data(self) -> None:
         """清空所有数据（一次性 Agent 覆盖导入场景）"""
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_connection()
         cursor = conn.cursor()
         try:
             # 先清空事件表，再清空主表
@@ -281,38 +334,60 @@ class LogisticsDataManager:
 
     def bulk_insert_shipments(self, shipments: List[Dict]):
         """批量插入物流数据"""
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_connection()
         cursor = conn.cursor()
 
         try:
             for shipment in shipments:
-                cursor.execute('''
-                INSERT OR REPLACE INTO shipments 
-                (id, origin, destination, origin_city, destination_city, status, estimated_delivery, actual_delivery, 
-                 weight, dimensions, customer_id, courier_company, courier, package_type, priority, 
-                 customer_type, payment_method, shipping_fee, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (
-                    shipment.get('id'),
-                    shipment.get('origin'),
-                    shipment.get('destination'),
-                    shipment.get('origin_city'),
-                    shipment.get('destination_city'),
-                    shipment.get('status'),
-                    shipment.get('estimated_delivery'),
-                    shipment.get('actual_delivery'),
-                    shipment.get('weight'),
-                    json.dumps(shipment.get('dimensions', {})),
-                    shipment.get('customer_id'),
-                    shipment.get('courier_company'),
-                    shipment.get('courier'),
-                    shipment.get('package_type'),
-                    shipment.get('priority'),
-                    shipment.get('customer_type'),
-                    shipment.get('payment_method'),
-                    shipment.get('shipping_fee'),
-                    shipment.get('created_at')
-                ))
+                cursor.execute(
+                    """
+                    INSERT INTO shipments
+                    (id, origin, destination, origin_city, destination_city, status, estimated_delivery, actual_delivery,
+                     weight, dimensions, customer_id, courier_company, courier, package_type, priority,
+                     customer_type, payment_method, shipping_fee, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE
+                        origin=VALUES(origin),
+                        destination=VALUES(destination),
+                        origin_city=VALUES(origin_city),
+                        destination_city=VALUES(destination_city),
+                        status=VALUES(status),
+                        estimated_delivery=VALUES(estimated_delivery),
+                        actual_delivery=VALUES(actual_delivery),
+                        weight=VALUES(weight),
+                        dimensions=VALUES(dimensions),
+                        customer_id=VALUES(customer_id),
+                        courier_company=VALUES(courier_company),
+                        courier=VALUES(courier),
+                        package_type=VALUES(package_type),
+                        priority=VALUES(priority),
+                        customer_type=VALUES(customer_type),
+                        payment_method=VALUES(payment_method),
+                        shipping_fee=VALUES(shipping_fee),
+                        created_at=VALUES(created_at)
+                    """,
+                    (
+                        shipment.get('id'),
+                        shipment.get('origin'),
+                        shipment.get('destination'),
+                        shipment.get('origin_city'),
+                        shipment.get('destination_city'),
+                        shipment.get('status'),
+                        shipment.get('estimated_delivery'),
+                        shipment.get('actual_delivery'),
+                        shipment.get('weight'),
+                        json.dumps(shipment.get('dimensions', {})),
+                        shipment.get('customer_id'),
+                        shipment.get('courier_company'),
+                        shipment.get('courier'),
+                        shipment.get('package_type'),
+                        shipment.get('priority'),
+                        shipment.get('customer_type'),
+                        shipment.get('payment_method'),
+                        shipment.get('shipping_fee'),
+                        shipment.get('created_at'),
+                    ),
+                )
 
             conn.commit()
             logger.info(f"成功插入 {len(shipments)} 条物流数据")
@@ -326,75 +401,65 @@ class LogisticsDataManager:
 
     def get_shipment_by_id(self, shipment_id: str) -> Optional[Dict]:
         """根据ID获取物流信息"""
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-
-        cursor.execute('SELECT * FROM shipments WHERE id = ?', (shipment_id,))
-        row = cursor.fetchone()
-        conn.close()
-
-        if row:
-            result = dict(row)
-            result['dimensions'] = json.loads(result['dimensions'])
-            return result
-        return None
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute('SELECT * FROM shipments WHERE id = %s', (shipment_id,))
+                row = cursor.fetchone()
+                if row:
+                    row['dimensions'] = json.loads(row.get('dimensions') or '{}')
+                    return row
+                return None
+        finally:
+            conn.close()
 
     def get_all_shipments(self, limit: int = 10000) -> List[Dict]:
         """获取所有物流信息"""
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-
-        cursor.execute('SELECT * FROM shipments ORDER BY created_at DESC LIMIT ?', (limit,))
-        rows = cursor.fetchall()
-        conn.close()
-
-        result = []
-        for row in rows:
-            item = dict(row)
-            item['dimensions'] = json.loads(item['dimensions'])
-            result.append(item)
-
-        return result
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute('SELECT * FROM shipments ORDER BY created_at DESC LIMIT %s', (int(limit),))
+                rows = cursor.fetchall()
+                result = []
+                for row in rows:
+                    row['dimensions'] = json.loads(row.get('dimensions') or '{}')
+                    result.append(row)
+                return result
+        finally:
+            conn.close()
 
     def get_shipment_events(self, shipment_id: str) -> List[Dict]:
         """获取物流事件历史"""
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-
-        cursor.execute('SELECT * FROM shipment_events WHERE shipment_id = ? ORDER BY timestamp', (shipment_id,))
-        rows = cursor.fetchall()
-        conn.close()
-
-        return [dict(row) for row in rows]
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute('SELECT * FROM shipment_events WHERE shipment_id = %s ORDER BY timestamp', (shipment_id,))
+                rows = cursor.fetchall()
+                return rows
+        finally:
+            conn.close()
 
     def get_daily_stats(self, date: str = None) -> Dict[str, Any]:
         """获取每日统计信息"""
         if not date:
             date = datetime.now().strftime("%Y-%m-%d")
 
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute('SELECT COUNT(*) AS c FROM shipments WHERE DATE(created_at) = %s', (date,))
+                total_shipments = cursor.fetchone()["c"]
 
-        # 获取当日发货总数
-        cursor.execute('SELECT COUNT(*) FROM shipments WHERE DATE(created_at) = ?', (date,))
-        total_shipments = cursor.fetchone()[0]
+                cursor.execute('SELECT COUNT(*) AS c FROM shipments WHERE DATE(actual_delivery) = %s', (date,))
+                delivered = cursor.fetchone()["c"]
 
-        # 获取当日已交付数量
-        cursor.execute('SELECT COUNT(*) FROM shipments WHERE DATE(actual_delivery) = ?', (date,))
-        delivered = cursor.fetchone()[0]
-
-        # 获取延迟交付数量
-        cursor.execute('''
-        SELECT COUNT(*) FROM shipments 
-        WHERE status = "delivered" AND actual_delivery > estimated_delivery
-        AND DATE(actual_delivery) = ?
-        ''', (date,))
-        delayed = cursor.fetchone()[0]
-
-        conn.close()
+                cursor.execute(
+                    'SELECT COUNT(*) AS c FROM shipments WHERE status = %s AND actual_delivery > estimated_delivery AND DATE(actual_delivery) = %s',
+                    ("delivered", date,),
+                )
+                delayed = cursor.fetchone()["c"]
+        finally:
+            conn.close()
 
         return {
             "date": date,

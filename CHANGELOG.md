@@ -3,6 +3,7 @@
 1. feat: 可视化图标,但是还有今日交付率不显示的 bug
 2. feat: 生成 python 代码并运行,但是人工智障
 3. feat: 添加删除 csv 的按钮
+4. feat: 使用 mqsql 存储
 
 ### v0.01.02
 1. feat:每次导入的 csv 都能被运行,但是 upload 文件夹还不能被解决
