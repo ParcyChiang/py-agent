@@ -309,6 +309,7 @@ def execute_code():
                 'getattr': getattr,
                 'setattr': setattr,
                 'open': open,
+                '__import__': __import__,
             }
         }
         
