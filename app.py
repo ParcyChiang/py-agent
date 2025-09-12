@@ -3,6 +3,10 @@ import asyncio
 import uuid
 import atexit
 import signal
+import sys
+import io
+import contextlib
+import traceback
 from flask import Flask, render_template, request, jsonify
 
 # 直接从models模块导入创建函数和类
@@ -43,6 +47,10 @@ def page_report():
 @app.route('/page/dashboard')
 def page_dashboard():
     return render_template('dashboard.html')
+
+@app.route('/page/code_generator')
+def page_code_generator():
+    return render_template('code_generator.html')
 
 
 @app.route('/upload', methods=['POST'])
@@ -179,6 +187,198 @@ def _generate_chart_data(shipments, daily_stats):
             'data': location_values
         }
     }
+
+
+@app.route('/generate_code', methods=['POST'])
+async def generate_code():
+    """生成Python代码"""
+    try:
+        data = request.get_json()
+        question = data.get('question', '').strip()
+        
+        if not question:
+            return jsonify({'success': False, 'message': '请输入问题'})
+        
+        # 获取物流数据作为上下文
+        shipments = data_manager.get_all_shipments(limit=1000)
+        
+        # 构建代码生成提示词
+        context = f"""
+        你是一个Python数据分析专家。用户想要分析物流数据，请根据用户的问题生成相应的Python代码。
+        
+        可用的物流数据字段包括：
+        - id: 物流单号
+        - origin: 发货地
+        - destination: 收货地
+        - origin_city: 发货城市
+        - destination_city: 收货城市
+        - status: 物流状态
+        - estimated_delivery: 预计送达时间
+        - actual_delivery: 实际送达时间
+        - weight: 重量
+        - courier_company: 快递公司
+        - shipping_fee: 运费
+        - created_at: 创建时间
+        
+        数据样本（前5条）：
+        {shipments[:5] if shipments else '暂无数据'}
+        
+        请生成完整的Python代码，包括：
+        1. 导入必要的库（pandas, matplotlib, seaborn等）
+        2. 数据加载和处理
+        3. 数据分析和可视化
+        4. 结果输出
+        
+        代码应该能够直接运行，并且包含适当的错误处理。
+        """
+        
+        prompt = f"""
+        用户问题：{question}
+        
+        请生成Python代码来分析物流数据。代码应该：
+        - 使用pandas处理数据
+        - 使用matplotlib或seaborn进行可视化
+        - 包含适当的注释
+        - 能够处理空数据和异常情况
+        - 输出清晰的分析结果
+        
+        只返回Python代码，不要包含其他说明文字。
+        """
+        
+        # 使用AI生成代码
+        code = await model_handler.generate_response(prompt, context)
+        
+        # 清理代码（移除可能的markdown标记）
+        if code.startswith('```python'):
+            code = code[9:]
+        if code.startswith('```'):
+            code = code[3:]
+        if code.endswith('```'):
+            code = code[:-3]
+        
+        code = code.strip()
+        
+        return jsonify({
+            'success': True,
+            'code': code
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'生成代码失败: {str(e)}'
+        })
+
+
+@app.route('/execute_code', methods=['POST'])
+def execute_code():
+    """执行Python代码"""
+    try:
+        data = request.get_json()
+        code = data.get('code', '').strip()
+        
+        if not code:
+            return jsonify({'success': False, 'error': '没有提供代码'})
+        
+        # 创建安全的执行环境
+        safe_globals = {
+            '__builtins__': {
+                'print': print,
+                'len': len,
+                'str': str,
+                'int': int,
+                'float': float,
+                'list': list,
+                'dict': dict,
+                'tuple': tuple,
+                'set': set,
+                'min': min,
+                'max': max,
+                'sum': sum,
+                'sorted': sorted,
+                'range': range,
+                'enumerate': enumerate,
+                'zip': zip,
+                'map': map,
+                'filter': filter,
+                'abs': abs,
+                'round': round,
+                'type': type,
+                'isinstance': isinstance,
+                'hasattr': hasattr,
+                'getattr': getattr,
+                'setattr': setattr,
+                'open': open,
+            }
+        }
+        
+        # 添加常用的数据分析库
+        try:
+            import pandas as pd
+            import numpy as np
+            import matplotlib.pyplot as plt
+            import seaborn as sns
+            from datetime import datetime, timedelta
+            import json
+            
+            safe_globals.update({
+                'pd': pd,
+                'np': np,
+                'plt': plt,
+                'sns': sns,
+                'datetime': datetime,
+                'timedelta': timedelta,
+                'json': json,
+                'shipments': data_manager.get_all_shipments(limit=10000)  # 提供数据
+            })
+        except ImportError as e:
+            return jsonify({
+                'success': False,
+                'error': f'缺少必要的库: {str(e)}'
+            })
+        
+        # 捕获输出
+        old_stdout = sys.stdout
+        old_stderr = sys.stderr
+        sys.stdout = captured_output = io.StringIO()
+        sys.stderr = captured_error = io.StringIO()
+        
+        try:
+            # 执行代码
+            exec(code, safe_globals)
+            
+            # 获取输出
+            output = captured_output.getvalue()
+            error = captured_error.getvalue()
+            
+            if error:
+                return jsonify({
+                    'success': False,
+                    'error': f'执行错误:\n{error}'
+                })
+            
+            return jsonify({
+                'success': True,
+                'output': output or '代码执行成功，无输出内容'
+            })
+            
+        except Exception as e:
+            error_msg = f'代码执行异常:\n{str(e)}\n\n{traceback.format_exc()}'
+            return jsonify({
+                'success': False,
+                'error': error_msg
+            })
+        
+        finally:
+            # 恢复标准输出
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'执行请求失败: {str(e)}'
+        })
 
 
 if __name__ == '__main__':
