@@ -71,6 +71,16 @@ def upload_file():
 
     return jsonify({'success': False, 'message': '只支持CSV文件'})
 
+@app.route('/delete_csv', methods=['POST'])
+def delete_csv():
+    """删除（清空）所有已导入的CSV数据"""
+    try:
+        data_manager.clear_all_data()
+        return jsonify({'success': True, 'message': '已清空所有CSV导入数据'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'清空失败: {str(e)}'})
+
+
 
 @app.route('/analyze', methods=['GET'])
 async def analyze_data():

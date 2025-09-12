@@ -31,6 +31,9 @@
                 </div>
                 <button type="submit">上传并导入数据</button>
             </form>
+            <div style="margin-top:12px;">
+                <button id="deleteCsvBtn" class="secondary">删除CSV数据</button>
+            </div>
             <div id="uploadResult"></div>
         </div>
     </div>
@@ -56,6 +59,24 @@
                     },
                     error: function() {
                         $('#uploadResult').html('<div class="error">上传失败，请重试</div>');
+                    }
+                });
+            });
+
+            $('#deleteCsvBtn').on('click', function(){
+                if(!confirm('确定要删除所有已导入的CSV数据吗？此操作不可恢复。')) return;
+                $.ajax({
+                    url: '/delete_csv',
+                    type: 'POST',
+                    success: function(response){
+                        if(response.success){
+                            $('#uploadResult').html('<div class="success">'+response.message+'</div>');
+                        } else {
+                            $('#uploadResult').html('<div class="error">'+response.message+'</div>');
+                        }
+                    },
+                    error: function(){
+                        $('#uploadResult').html('<div class="error">删除失败，请重试</div>');
                     }
                 });
             });
