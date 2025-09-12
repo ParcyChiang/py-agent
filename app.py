@@ -161,20 +161,36 @@ async def get_shipment(shipment_id):
 
 def _generate_chart_data(shipments, daily_stats):
     """生成图表数据"""
-    # 趋势数据 - 按日期统计
-    trend_data = defaultdict(int)
-    for shipment in shipments:
-        if 'created_at' in shipment:
+    # 趋势数据 - 按交付日期统计（优先 actual_delivery，其次回退 created_at）
+    def _parse_date_str(date_str):
+        if not date_str:
+            return None
+        try:
+            # 支持 'YYYY-MM-DD' 或 'YYYY-MM-DD HH:MM:SS' 或 ISO 格式
+            return datetime.fromisoformat(str(date_str).replace('Z', '+00:00')).date()
+        except Exception:
             try:
-                date = datetime.fromisoformat(shipment['created_at'].replace('Z', '+00:00')).date()
-                trend_data[date] += 1
-            except:
-                continue
-    
-    # 按日期排序并生成趋势数据
-    sorted_dates = sorted(trend_data.keys())
-    trend_labels = [date.strftime('%m-%d') for date in sorted_dates[-7:]]  # 最近7天
-    trend_values = [trend_data[date] for date in sorted_dates[-7:]]
+                return datetime.strptime(str(date_str), '%Y-%m-%d').date()
+            except Exception:
+                try:
+                    return datetime.strptime(str(date_str), '%Y-%m-%d %H:%M:%S').date()
+                except Exception:
+                    return None
+
+    deliveries_per_day = defaultdict(int)
+    for shipment in shipments:
+        delivery_date = _parse_date_str(shipment.get('actual_delivery'))
+        if delivery_date is None:
+            # 没有交付日期则回退到创建日期
+            delivery_date = _parse_date_str(shipment.get('created_at'))
+        if delivery_date is not None:
+            deliveries_per_day[delivery_date] += 1
+
+    # 补齐最近7天日期，即便为0也要显示
+    today = datetime.now().date()
+    last_7_days = [today - timedelta(days=i) for i in range(6, -1, -1)]
+    trend_labels = [d.strftime('%m-%d') for d in last_7_days]
+    trend_values = [deliveries_per_day.get(d, 0) for d in last_7_days]
     
     # 地理位置数据
     location_counter = Counter()
