@@ -168,15 +168,22 @@
         function updateDashboard() {
             $.getJSON('/analyze', function(response) {
                 if (response.success) {
+                    // 统一数据引用与中英文键兼容
+                    const statusDist = response.summary && response.summary.status_distribution ? response.summary.status_distribution : {};
+                    const totalRecords = (response.summary && response.summary.total_records) || 0;
+                    const totalToday = (response.statistics && response.statistics.total_shipments) || 0; // 今日入库/创建
+                    const deliveredToday = (response.statistics && response.statistics.delivered) || 0; // 今日交付
+                    const deliveredAll = statusDist['delivered'] || statusDist['已交付'] || 0; // 总交付量
+                    const inTransitAll = statusDist['in_transit'] || statusDist['运输中'] || 0; // 运输中（总量）
+
                     // 更新指标卡片
-                    $('#totalShipments').text(response.statistics.total_shipments || 0);
-                    $('#deliveredToday').text(response.summary.status_distribution['已交付'] || 0);
-                    $('#inTransit').text(response.summary.status_distribution['运输中'] || 0);
-                    
-                    // 计算交付率
-                    const total = response.statistics.total_shipments || 1;
-                    const delivered = response.summary.status_distribution['已交付'] || 0;
-                    const rate = Math.round((delivered / total) * 100);
+                    $('#totalShipments').text(totalRecords);
+                    $('#deliveredToday').text(deliveredToday);
+                    $('#inTransit').text(inTransitAll);
+
+                    // 交付率：使用总交付量 / 总发货量
+                    const denom = totalRecords > 0 ? totalRecords : 1;
+                    const rate = Math.round((deliveredAll / denom) * 100);
                     $('#deliveryRate').text(rate + '%');
                     
                     // 更新图表
