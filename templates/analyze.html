@@ -19,6 +19,7 @@
             <a class="secondary" href="/page/analyze">运营分析</a>
             <a class="secondary" href="/page/shipments">数据列表</a>
             <a class="secondary" href="/page/report">日报中心</a>
+            <a class="secondary" href="/page/dashboard">实时监控</a>
         </nav>
 
         <div class="analysis-section">
@@ -28,20 +29,118 @@
                     <h3>数据概览</h3>
                     <div id="statsContent">请先上传数据</div>
                 </div>
+                <div class="chart-card">
+                    <h3>物流状态分布</h3>
+                    <canvas id="statusChart" width="400" height="300"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3>交付时间趋势</h3>
+                    <canvas id="trendChart" width="400" height="300"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3>地理位置分布</h3>
+                    <canvas id="locationChart" width="400" height="300"></canvas>
+                </div>
                 <div class="report-card">
                     <h3>AI分析报告</h3>
-                    <div id="analysisContent">点击“分析物流数据”生成报告</div>
+                    <div id="analysisContent">点击"分析物流数据"生成报告</div>
                 </div>
                 <div class="report-card">
                     <h3>每日运营报告</h3>
-                    <div id="dailyReportContent">点击“分析物流数据”生成日报</div>
+                    <div id="dailyReportContent">点击"分析物流数据"生成日报</div>
                 </div>
             </div>
         </div>
     </div>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
+        let statusChart, trendChart, locationChart;
+        
+        function createStatusChart(statusData) {
+            const ctx = document.getElementById('statusChart').getContext('2d');
+            if (statusChart) statusChart.destroy();
+            
+            statusChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(statusData),
+                    datasets: [{
+                        data: Object.values(statusData),
+                        backgroundColor: [
+                            '#FF6384',
+                            '#36A2EB',
+                            '#FFCE56',
+                            '#4BC0C0',
+                            '#9966FF',
+                            '#FF9F40'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+        
+        function createTrendChart(trendData) {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            if (trendChart) trendChart.destroy();
+            
+            trendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: trendData.labels || ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+                    datasets: [{
+                        label: '交付数量',
+                        data: trendData.data || [12, 19, 3, 5, 2, 3, 7],
+                        borderColor: '#36A2EB',
+                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+        
+        function createLocationChart(locationData) {
+            const ctx = document.getElementById('locationChart').getContext('2d');
+            if (locationChart) locationChart.destroy();
+            
+            locationChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: locationData.labels || ['北京', '上海', '广州', '深圳', '杭州'],
+                    datasets: [{
+                        label: '发货量',
+                        data: locationData.data || [20, 15, 10, 8, 12],
+                        backgroundColor: '#4BC0C0'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+        
         $(function(){
             $('#analyzeBtn').on('click', function() {
                 $('#analysisContent').html('分析中，请稍候...');
@@ -55,6 +154,11 @@
                         );
                         $('#analysisContent').html(response.analysis);
                         $('#dailyReportContent').html(response.daily_report);
+                        
+                        // 创建图表
+                        createStatusChart(response.summary.status_distribution);
+                        createTrendChart(response.statistics.trend_data || {});
+                        createLocationChart(response.statistics.location_data || {});
                     } else {
                         $('#analysisContent').html('<div class="error">'+response.message+'</div>');
                     }
@@ -66,4 +170,5 @@
     </script>
 </body>
 </html>
+
 

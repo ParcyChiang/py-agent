@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实时监控仪表板 - 物流智能分析</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .metric-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .metric-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #0ea5e9;
+            margin: 10px 0;
+        }
+        .metric-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+        .chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .auto-refresh {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #22c55e;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>实时监控仪表板</h1>
+            <p>实时监控物流运营状态和关键指标</p>
+        </header>
+
+        <nav class="nav">
+            <a href="/">首页</a>
+            <a class="secondary" href="/page/upload">数据导入</a>
+            <a class="secondary" href="/page/analyze">运营分析</a>
+            <a class="secondary" href="/page/shipments">数据列表</a>
+            <a class="secondary" href="/page/report">日报中心</a>
+            <a class="secondary" href="/page/dashboard">实时监控</a>
+        </nav>
+
+        <div class="auto-refresh">
+            <span id="refreshStatus">自动刷新: 开启</span>
+            <button id="toggleRefresh" style="margin-left: 10px; background: rgba(255,255,255,0.2); border: none; color: white; padding: 5px 10px; border-radius: 4px; cursor: pointer;">关闭</button>
+        </div>
+
+        <div class="dashboard-grid">
+            <div class="metric-card">
+                <div class="metric-value" id="totalShipments">-</div>
+                <div class="metric-label">总发货量</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="deliveredToday">-</div>
+                <div class="metric-label">今日交付</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="inTransit">-</div>
+                <div class="metric-label">运输中</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="deliveryRate">-</div>
+                <div class="metric-label">交付率</div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <h3>实时状态分布</h3>
+            <canvas id="realtimeStatusChart" width="400" height="200"></canvas>
+        </div>
+
+        <div class="chart-container">
+            <h3>今日交付趋势</h3>
+            <canvas id="realtimeTrendChart" width="400" height="200"></canvas>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        let realtimeStatusChart, realtimeTrendChart;
+        let autoRefreshInterval;
+        let isAutoRefresh = true;
+        
+        function createRealtimeStatusChart(statusData) {
+            const ctx = document.getElementById('realtimeStatusChart').getContext('2d');
+            if (realtimeStatusChart) realtimeStatusChart.destroy();
+            
+            realtimeStatusChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(statusData),
+                    datasets: [{
+                        data: Object.values(statusData),
+                        backgroundColor: [
+                            '#22c55e',  // 已交付 - 绿色
+                            '#f59e0b',  // 运输中 - 橙色
+                            '#ef4444',  // 延迟 - 红色
+                            '#6b7280',  // 其他 - 灰色
+                            '#3b82f6'   // 待处理 - 蓝色
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+        
+        function createRealtimeTrendChart(trendData) {
+            const ctx = document.getElementById('realtimeTrendChart').getContext('2d');
+            if (realtimeTrendChart) realtimeTrendChart.destroy();
+            
+            realtimeTrendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: trendData.labels || [],
+                    datasets: [{
+                        label: '交付数量',
+                        data: trendData.data || [],
+                        borderColor: '#22c55e',
+                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+        
+        function updateDashboard() {
+            $.getJSON('/analyze', function(response) {
+                if (response.success) {
+                    // 更新指标卡片
+                    $('#totalShipments').text(response.statistics.total_shipments || 0);
+                    $('#deliveredToday').text(response.summary.status_distribution['已交付'] || 0);
+                    $('#inTransit').text(response.summary.status_distribution['运输中'] || 0);
+                    
+                    // 计算交付率
+                    const total = response.statistics.total_shipments || 1;
+                    const delivered = response.summary.status_distribution['已交付'] || 0;
+                    const rate = Math.round((delivered / total) * 100);
+                    $('#deliveryRate').text(rate + '%');
+                    
+                    // 更新图表
+                    createRealtimeStatusChart(response.summary.status_distribution);
+                    createRealtimeTrendChart(response.statistics.trend_data || {});
+                }
+            }).fail(function() {
+                console.log('数据更新失败');
+            });
+        }
+        
+        function startAutoRefresh() {
+            if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+            autoRefreshInterval = setInterval(updateDashboard, 30000); // 30秒刷新一次
+        }
+        
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+        }
+        
+        $(function(){
+            // 初始加载
+            updateDashboard();
+            
+            // 自动刷新控制
+            $('#toggleRefresh').on('click', function() {
+                isAutoRefresh = !isAutoRefresh;
+                if (isAutoRefresh) {
+                    startAutoRefresh();
+                    $('#refreshStatus').text('自动刷新: 开启');
+                    $(this).text('关闭');
+                } else {
+                    stopAutoRefresh();
+                    $('#refreshStatus').text('自动刷新: 关闭');
+                    $(this).text('开启');
+                }
+            });
+            
+            // 启动自动刷新
+            startAutoRefresh();
+        });
+    </script>
+</body>
+</html>

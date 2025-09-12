@@ -8,6 +8,8 @@ from flask import Flask, render_template, request, jsonify
 # 直接从models模块导入创建函数和类
 from models import create_data_manager, create_model_handler
 from utils import format_ai_response
+from collections import Counter, defaultdict
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB限制
@@ -37,6 +39,10 @@ def page_shipments():
 @app.route('/page/report')
 def page_report():
     return render_template('report.html')
+
+@app.route('/page/dashboard')
+def page_dashboard():
+    return render_template('dashboard.html')
 
 
 @app.route('/upload', methods=['POST'])
@@ -79,11 +85,18 @@ async def analyze_data():
         analysis_html = format_ai_response(analysis['analysis'])
         report_html = format_ai_response(daily_report['report'])
 
+        # 生成图表数据
+        chart_data = _generate_chart_data(shipments, daily_stats)
+        
         return jsonify({
             'success': True,
             'analysis': analysis_html,
             'daily_report': report_html,
-            'statistics': daily_stats,
+            'statistics': {
+                **daily_stats,
+                'trend_data': chart_data['trend_data'],
+                'location_data': chart_data['location_data']
+            },
             'summary': {
                 'total_records': len(shipments),
                 'status_distribution': model_handler._get_status_distribution(shipments)
@@ -126,6 +139,46 @@ async def get_shipment(shipment_id):
         'analysis': analysis_html,
         'prediction': prediction_html
     })
+
+
+def _generate_chart_data(shipments, daily_stats):
+    """生成图表数据"""
+    # 趋势数据 - 按日期统计
+    trend_data = defaultdict(int)
+    for shipment in shipments:
+        if 'created_at' in shipment:
+            try:
+                date = datetime.fromisoformat(shipment['created_at'].replace('Z', '+00:00')).date()
+                trend_data[date] += 1
+            except:
+                continue
+    
+    # 按日期排序并生成趋势数据
+    sorted_dates = sorted(trend_data.keys())
+    trend_labels = [date.strftime('%m-%d') for date in sorted_dates[-7:]]  # 最近7天
+    trend_values = [trend_data[date] for date in sorted_dates[-7:]]
+    
+    # 地理位置数据
+    location_counter = Counter()
+    for shipment in shipments:
+        if 'origin_city' in shipment and shipment['origin_city']:
+            location_counter[shipment['origin_city']] += 1
+    
+    # 取前5个城市
+    top_locations = location_counter.most_common(5)
+    location_labels = [loc[0] for loc in top_locations]
+    location_values = [loc[1] for loc in top_locations]
+    
+    return {
+        'trend_data': {
+            'labels': trend_labels,
+            'data': trend_values
+        },
+        'location_data': {
+            'labels': location_labels,
+            'data': location_values
+        }
+    }
 
 
 if __name__ == '__main__':

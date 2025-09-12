@@ -61,7 +61,7 @@ button:hover {
     margin-top: 20px;
 }
 
-.stats-card, .report-card {
+.stats-card, .report-card, .chart-card {
     background: #f9f9f9;
     padding: 18px;
     border-radius: 10px;
@@ -70,6 +70,16 @@ button:hover {
 
 .report-card {
     grid-column: span 2;
+}
+
+.chart-card {
+    background: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.chart-card canvas {
+    max-width: 100%;
+    height: auto;
 }
 
 .success {

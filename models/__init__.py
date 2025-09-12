@@ -39,12 +39,21 @@ class LogisticsDataManager:
             id TEXT PRIMARY KEY,
             origin TEXT,
             destination TEXT,
+            origin_city TEXT,
+            destination_city TEXT,
             status TEXT,
             estimated_delivery DATE,
             actual_delivery DATE,
             weight REAL,
             dimensions TEXT,
             customer_id TEXT,
+            courier_company TEXT,
+            courier TEXT,
+            package_type TEXT,
+            priority TEXT,
+            customer_type TEXT,
+            payment_method TEXT,
+            shipping_fee REAL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         ''')
@@ -69,27 +78,76 @@ class LogisticsDataManager:
         """从CSV文件导入数据"""
         try:
             df = pd.read_csv(file_path)
+            logger.info(f"CSV列名: {list(df.columns)}")
+            logger.info(f"CSV行数: {len(df)}")
+            
             shipments = df.to_dict('records')
 
             # 转换数据格式
             processed_shipments = []
-            for shipment in shipments:
-                processed_shipment = {
-                    'id': str(shipment.get('id', '')),
-                    'origin': str(shipment.get('origin', '')),
-                    'destination': str(shipment.get('destination', '')),
-                    'status': str(shipment.get('status', 'pending')),
-                    'estimated_delivery': shipment.get('estimated_delivery'),
-                    'actual_delivery': shipment.get('actual_delivery'),
-                    'weight': float(shipment.get('weight', 0)),
-                    'dimensions': {
-                        'length': float(shipment.get('length', 0)),
-                        'width': float(shipment.get('width', 0)),
-                        'height': float(shipment.get('height', 0))
-                    },
-                    'customer_id': str(shipment.get('customer_id', ''))
+            for i, shipment in enumerate(shipments):
+                try:
+                    # 安全的数据类型转换
+                    def safe_float(value, default=0.0):
+                        try:
+                            if pd.isna(value) or value == '' or value is None:
+                                return default
+                            return float(value)
+                        except (ValueError, TypeError):
+                            return default
+                    
+                    def safe_str(value, default=''):
+                        try:
+                            if pd.isna(value) or value is None:
+                                return default
+                            return str(value)
+                        except (ValueError, TypeError):
+                            return default
+                    
+                    def safe_date(value):
+                        try:
+                            if pd.isna(value) or value == '' or value is None:
+                                return None
+                            return str(value)
+                        except (ValueError, TypeError):
+                            return None
+
+                    processed_shipment = {
+                        'id': safe_str(shipment.get('id', '')),
+                        'origin': safe_str(shipment.get('origin', '')),
+                        'destination': safe_str(shipment.get('destination', '')),
+                        'origin_city': safe_str(shipment.get('origin_city', '')),
+                        'destination_city': safe_str(shipment.get('destination_city', '')),
+                        'status': safe_str(shipment.get('status', 'pending')),
+                        'estimated_delivery': safe_date(shipment.get('estimated_delivery')),
+                        'actual_delivery': safe_date(shipment.get('actual_delivery')),
+                        'weight': safe_float(shipment.get('weight', 0)),
+                        'dimensions': {
+                            'length': safe_float(shipment.get('length', 0)),
+                            'width': safe_float(shipment.get('width', 0)),
+                            'height': safe_float(shipment.get('height', 0))
+                        },
+                        'customer_id': safe_str(shipment.get('customer_id', '')),
+                        'courier_company': safe_str(shipment.get('courier_company', '')),
+                        'courier': safe_str(shipment.get('courier', '')),
+                        'package_type': safe_str(shipment.get('package_type', '')),
+                        'priority': safe_str(shipment.get('priority', 'standard')),
+                        'customer_type': safe_str(shipment.get('customer_type', '')),
+                        'payment_method': safe_str(shipment.get('payment_method', '')),
+                        'shipping_fee': safe_float(shipment.get('shipping_fee', 0)),
+                        'created_at': safe_str(shipment.get('created_at', ''))
+                    }
+                    processed_shipments.append(processed_shipment)
+                    
+                except Exception as e:
+                    logger.warning(f"处理第{i+1}条记录时出错: {e}")
+                    continue
+
+            if not processed_shipments:
+                return {
+                    "success": False,
+                    "message": "没有成功处理任何数据记录"
                 }
-                processed_shipments.append(processed_shipment)
 
             # 覆盖导入：清空旧数据再写入
             self.clear_all_data()
@@ -103,6 +161,8 @@ class LogisticsDataManager:
 
         except Exception as e:
             logger.error(f"导入CSV数据时出错: {e}")
+            import traceback
+            logger.error(f"详细错误: {traceback.format_exc()}")
             return {
                 "success": False,
                 "message": f"导入失败: {str(e)}"
@@ -128,28 +188,78 @@ class LogisticsDataManager:
         """从内存字节流导入CSV数据（无需落盘）"""
         try:
             from io import BytesIO
+            import numpy as np
 
             df = pd.read_csv(BytesIO(file_bytes))
+            logger.info(f"CSV列名: {list(df.columns)}")
+            logger.info(f"CSV行数: {len(df)}")
+            
             shipments = df.to_dict('records')
 
             processed_shipments = []
-            for shipment in shipments:
-                processed_shipment = {
-                    'id': str(shipment.get('id', '')),
-                    'origin': str(shipment.get('origin', '')),
-                    'destination': str(shipment.get('destination', '')),
-                    'status': str(shipment.get('status', 'pending')),
-                    'estimated_delivery': shipment.get('estimated_delivery'),
-                    'actual_delivery': shipment.get('actual_delivery'),
-                    'weight': float(shipment.get('weight', 0)),
-                    'dimensions': {
-                        'length': float(shipment.get('length', 0)),
-                        'width': float(shipment.get('width', 0)),
-                        'height': float(shipment.get('height', 0))
-                    },
-                    'customer_id': str(shipment.get('customer_id', ''))
+            for i, shipment in enumerate(shipments):
+                try:
+                    # 安全的数据类型转换
+                    def safe_float(value, default=0.0):
+                        try:
+                            if pd.isna(value) or value == '' or value is None:
+                                return default
+                            return float(value)
+                        except (ValueError, TypeError):
+                            return default
+                    
+                    def safe_str(value, default=''):
+                        try:
+                            if pd.isna(value) or value is None:
+                                return default
+                            return str(value)
+                        except (ValueError, TypeError):
+                            return default
+                    
+                    def safe_date(value):
+                        try:
+                            if pd.isna(value) or value == '' or value is None:
+                                return None
+                            return str(value)
+                        except (ValueError, TypeError):
+                            return None
+
+                    processed_shipment = {
+                        'id': safe_str(shipment.get('id', '')),
+                        'origin': safe_str(shipment.get('origin', '')),
+                        'destination': safe_str(shipment.get('destination', '')),
+                        'origin_city': safe_str(shipment.get('origin_city', '')),
+                        'destination_city': safe_str(shipment.get('destination_city', '')),
+                        'status': safe_str(shipment.get('status', 'pending')),
+                        'estimated_delivery': safe_date(shipment.get('estimated_delivery')),
+                        'actual_delivery': safe_date(shipment.get('actual_delivery')),
+                        'weight': safe_float(shipment.get('weight', 0)),
+                        'dimensions': {
+                            'length': safe_float(shipment.get('length', 0)),
+                            'width': safe_float(shipment.get('width', 0)),
+                            'height': safe_float(shipment.get('height', 0))
+                        },
+                        'customer_id': safe_str(shipment.get('customer_id', '')),
+                        'courier_company': safe_str(shipment.get('courier_company', '')),
+                        'courier': safe_str(shipment.get('courier', '')),
+                        'package_type': safe_str(shipment.get('package_type', '')),
+                        'priority': safe_str(shipment.get('priority', 'standard')),
+                        'customer_type': safe_str(shipment.get('customer_type', '')),
+                        'payment_method': safe_str(shipment.get('payment_method', '')),
+                        'shipping_fee': safe_float(shipment.get('shipping_fee', 0)),
+                        'created_at': safe_str(shipment.get('created_at', ''))
+                    }
+                    processed_shipments.append(processed_shipment)
+                    
+                except Exception as e:
+                    logger.warning(f"处理第{i+1}条记录时出错: {e}")
+                    continue
+
+            if not processed_shipments:
+                return {
+                    "success": False,
+                    "message": "没有成功处理任何数据记录"
                 }
-                processed_shipments.append(processed_shipment)
 
             # 覆盖导入
             self.clear_all_data()
@@ -162,6 +272,8 @@ class LogisticsDataManager:
             }
         except Exception as e:
             logger.error(f"从字节流导入CSV失败: {e}")
+            import traceback
+            logger.error(f"详细错误: {traceback.format_exc()}")
             return {
                 "success": False,
                 "message": f"导入失败: {str(e)}"
@@ -176,18 +288,30 @@ class LogisticsDataManager:
             for shipment in shipments:
                 cursor.execute('''
                 INSERT OR REPLACE INTO shipments 
-                (id, origin, destination, status, estimated_delivery, actual_delivery, weight, dimensions, customer_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (id, origin, destination, origin_city, destination_city, status, estimated_delivery, actual_delivery, 
+                 weight, dimensions, customer_id, courier_company, courier, package_type, priority, 
+                 customer_type, payment_method, shipping_fee, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     shipment.get('id'),
                     shipment.get('origin'),
                     shipment.get('destination'),
+                    shipment.get('origin_city'),
+                    shipment.get('destination_city'),
                     shipment.get('status'),
                     shipment.get('estimated_delivery'),
                     shipment.get('actual_delivery'),
                     shipment.get('weight'),
                     json.dumps(shipment.get('dimensions', {})),
-                    shipment.get('customer_id')
+                    shipment.get('customer_id'),
+                    shipment.get('courier_company'),
+                    shipment.get('courier'),
+                    shipment.get('package_type'),
+                    shipment.get('priority'),
+                    shipment.get('customer_type'),
+                    shipment.get('payment_method'),
+                    shipment.get('shipping_fee'),
+                    shipment.get('created_at')
                 ))
 
             conn.commit()
