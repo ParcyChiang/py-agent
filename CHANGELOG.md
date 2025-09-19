@@ -1,6 +1,7 @@
 ## py-agent搭建Log
 ### v0.02.01
 1. feat: 更新 toDO.md
+2. feat: 更新 论文题目
 
 ### v0.02.00
 1. feat: 可视化图标,但是还有今日交付率不显示的 bug
