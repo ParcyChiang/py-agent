@@ -27,11 +27,24 @@
    ```bash
    pip install -r requirements.txt
    ```
-4. #### 下载模型(重要!!!!!!)
+4.  下载模型(重要!!!!!!)
     ```bash
-   ollama pull qwen:0.5b
+    ollama pull qwen:0.5b
+    ```
+5. 创建并启动 mysql, 账号 root, 密码 rootroot
+   - ###### mac(如果使用 Homebrew 安装)
+    ```bash
+     brew services start mysql//启动 mysql
+     mysql -u root//首次登录,创建无密码账号
+     ALTER USER 'root'@'localhost' IDENTIFIED BY 'rootroot';//添加密码
+    ```
+   - ###### mac(如果用 pkg 安装,前往系统设置-->(最底下)Mysql 服务-->启动-->创建账号)
+    ```bash
+   mysql -u root -p
+   //输入密码 rootroot
    ```
-5. 运行应用
+   - ###### windows(不清楚)
+6. 运行应用
    ```bash
    python app.py
    ```
@@ -53,7 +66,6 @@ py-agent/
 ```
 
 ## 数据与数据库
-- 项目默认使用 SQLite 数据库文件 `logistics.db` 存储数据。
 - 首次运行时，如果数据库或表不存在，应用会在需要时自动创建（具体逻辑见 `models/__init__.py`）。
 
 ## 上传与示例数据
