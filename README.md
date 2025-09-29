@@ -34,14 +34,14 @@
 5. 创建并启动 mysql, 账号 root, 密码 rootroot
    - ###### mac(如果使用 Homebrew 安装)
     ```bash
-     brew services start mysql//启动 mysql
-     mysql -u root//首次登录,创建无密码账号
-     ALTER USER 'root'@'localhost' IDENTIFIED BY 'rootroot';//添加密码
+     brew services start mysql                            #启动 mysql
+     mysql -u root                              #首次登录,创建无密码账号
+     ALTER USER 'root'@'localhost' IDENTIFIED BY 'rootroot';#添加密码
     ```
-   - ###### mac(如果用 pkg 安装,前往系统设置-->(最底下)Mysql 服务-->启动-->创建账号)
+   - ###### mac(如果用 pkg 安装<br>前往系统设置-->(最底下)Mysql 服务-->启动-->创建账号)
     ```bash
    mysql -u root -p
-   //输入密码 rootroot
+   #输入密码 rootroot
    ```
    - ###### windows(不清楚)
 6. 运行应用
