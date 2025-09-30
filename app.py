@@ -112,8 +112,10 @@ async def analyze_data():
             'daily_report': report_html,
             'statistics': {
                 **daily_stats,
-                'trend_data': chart_data['trend_data'],
-                'location_data': chart_data['location_data']
+                'surface_3d': chart_data['surface_3d'],
+                'scatter_3d': chart_data['scatter_3d'],
+                'wireframe_3d': chart_data['wireframe_3d'],
+                'data_info': chart_data['data_info']
             },
             'summary': {
                 'total_records': len(shipments),
@@ -160,13 +162,29 @@ async def get_shipment(shipment_id):
 
 
 def _generate_chart_data(shipments, daily_stats):
-    """生成图表数据"""
-    # 趋势数据 - 按交付日期统计（优先 actual_delivery，其次回退 created_at）
+    """生成三维曲面图数据"""
+    import numpy as np
+    import matplotlib
+    matplotlib.use('Agg')  # 使用非GUI后端
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D
+    import base64
+    import io
+    
+    # 设置中文字体
+    plt.rcParams['font.sans-serif'] = ['Arial Unicode MS', 'SimHei', 'DejaVu Sans']
+    plt.rcParams['axes.unicode_minus'] = False
+    
+    # 调试信息
+    print(f"收到 {len(shipments)} 条物流数据")
+    if shipments:
+        print(f"第一条数据字段: {list(shipments[0].keys())}")
+        print(f"第一条数据示例: {shipments[0]}")
+    
     def _parse_date_str(date_str):
         if not date_str:
             return None
         try:
-            # 支持 'YYYY-MM-DD' 或 'YYYY-MM-DD HH:MM:SS' 或 ISO 格式
             return datetime.fromisoformat(str(date_str).replace('Z', '+00:00')).date()
         except Exception:
             try:
@@ -177,42 +195,224 @@ def _generate_chart_data(shipments, daily_stats):
                 except Exception:
                     return None
 
-    deliveries_per_day = defaultdict(int)
+    # 准备三维数据：时间 x 城市 x 状态
+    time_city_status_data = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+    
     for shipment in shipments:
+        # 优先使用actual_delivery，如果为空则使用created_at
         delivery_date = _parse_date_str(shipment.get('actual_delivery'))
         if delivery_date is None:
-            # 没有交付日期则回退到创建日期
             delivery_date = _parse_date_str(shipment.get('created_at'))
-        if delivery_date is not None:
-            deliveries_per_day[delivery_date] += 1
-
-    # 补齐最近7天日期，即便为0也要显示
-    today = datetime.now().date()
-    last_7_days = [today - timedelta(days=i) for i in range(6, -1, -1)]
-    trend_labels = [d.strftime('%m-%d') for d in last_7_days]
-    trend_values = [deliveries_per_day.get(d, 0) for d in last_7_days]
+        
+        # 如果还是没有日期，跳过这条记录
+        if delivery_date is None:
+            continue
+            
+        city = shipment.get('origin_city', '未知城市')
+        status = shipment.get('status', '未知状态')
+        
+        # 确保城市和状态不为空
+        if city and city != '未知城市' and status and status != '未知状态':
+            time_city_status_data[delivery_date][city][status] += 1
     
-    # 地理位置数据
-    location_counter = Counter()
-    for shipment in shipments:
-        if 'origin_city' in shipment and shipment['origin_city']:
-            location_counter[shipment['origin_city']] += 1
+    # 调试信息
+    print(f"处理后的数据点数量: {sum(sum(sum(city_data.values()) for city_data in day_data.values()) for day_data in time_city_status_data.values())}")
+    print(f"涉及的城市: {set(city for day_data in time_city_status_data.values() for city in day_data.keys())}")
+    print(f"涉及的状态: {set(status for day_data in time_city_status_data.values() for city_data in day_data.values() for status in city_data.keys())}")
     
-    # 取前5个城市
-    top_locations = location_counter.most_common(5)
-    location_labels = [loc[0] for loc in top_locations]
-    location_values = [loc[1] for loc in top_locations]
-    
-    return {
-        'trend_data': {
-            'labels': trend_labels,
-            'data': trend_values
-        },
-        'location_data': {
-            'labels': location_labels,
-            'data': location_values
+    # 获取数据范围
+    if not time_city_status_data:
+        # 如果没有数据，返回空结果
+        return {
+            'surface_3d': None,
+            'scatter_3d': None,
+            'wireframe_3d': None,
+            'data_info': {
+                'cities': [],
+                'time_labels': [],
+                'statuses': [],
+                'error': '没有可用的数据生成三维图表'
+            }
         }
-    }
+    
+    # 获取所有日期并排序
+    all_dates = sorted(time_city_status_data.keys())
+    if len(all_dates) > 7:
+        # 如果数据超过7天，取最近7天
+        last_7_days = all_dates[-7:]
+    else:
+        # 如果数据少于7天，使用所有可用日期
+        last_7_days = all_dates
+    
+    all_cities = set()
+    all_statuses = set()
+    for day_data in time_city_status_data.values():
+        for city in day_data.keys():
+            all_cities.add(city)
+            for status in day_data[city].keys():
+                all_statuses.add(status)
+    
+    all_cities = sorted(list(all_cities))[:8]  # 限制前8个城市
+    all_statuses = sorted(list(all_statuses))[:6]  # 限制前6个状态
+    
+    # 创建三维数据矩阵
+    X = np.arange(len(all_cities))  # 城市索引
+    Y = np.arange(len(last_7_days))  # 时间索引
+    X, Y = np.meshgrid(X, Y)
+    
+    # 为每个状态创建Z值矩阵
+    surface_data = {}
+    for status in all_statuses:
+        Z = np.zeros((len(last_7_days), len(all_cities)))
+        for i, day in enumerate(last_7_days):
+            for j, city in enumerate(all_cities):
+                Z[i, j] = time_city_status_data[day][city][status]
+        surface_data[status] = Z
+    
+    # 生成三维曲面图
+    def create_3d_surface_plot():
+        fig = plt.figure(figsize=(12, 8))
+        ax = fig.add_subplot(111, projection='3d')
+        
+        colors = ['red', 'blue', 'green', 'orange', 'purple', 'brown']
+        
+        for i, (status, Z) in enumerate(surface_data.items()):
+            if i < len(colors):
+                surf = ax.plot_surface(X, Y, Z, alpha=0.7, color=colors[i], 
+                                     label=status, linewidth=0, antialiased=True)
+        
+        ax.set_xlabel('Cities')
+        ax.set_ylabel('Time')
+        ax.set_zlabel('Count')
+        ax.set_title('3D Surface Plot - Logistics Data')
+        
+        # 设置坐标轴标签
+        ax.set_xticks(range(len(all_cities)))
+        ax.set_xticklabels(all_cities, rotation=45)
+        ax.set_yticks(range(len(last_7_days)))
+        ax.set_yticklabels([d.strftime('%m-%d') for d in last_7_days])
+        
+        plt.tight_layout()
+        
+        # 转换为base64字符串
+        buffer = io.BytesIO()
+        plt.savefig(buffer, format='png', dpi=150, bbox_inches='tight')
+        buffer.seek(0)
+        image_base64 = base64.b64encode(buffer.getvalue()).decode()
+        plt.close()
+        
+        return image_base64
+    
+    # 生成三维散点图
+    def create_3d_scatter_plot():
+        fig = plt.figure(figsize=(12, 8))
+        ax = fig.add_subplot(111, projection='3d')
+        
+        colors = ['red', 'blue', 'green', 'orange', 'purple', 'brown']
+        
+        for i, (status, Z) in enumerate(surface_data.items()):
+            if i < len(colors):
+                # 创建散点数据
+                x_data, y_data, z_data = [], [], []
+                for row in range(Z.shape[0]):
+                    for col in range(Z.shape[1]):
+                        if Z[row, col] > 0:
+                            x_data.append(col)
+                            y_data.append(row)
+                            z_data.append(Z[row, col])
+                
+                if x_data:
+                    ax.scatter(x_data, y_data, z_data, c=colors[i], 
+                             label=status, s=50, alpha=0.7)
+        
+        ax.set_xlabel('Cities')
+        ax.set_ylabel('Time')
+        ax.set_zlabel('Count')
+        ax.set_title('3D Scatter Plot - Logistics Data')
+        
+        # 设置坐标轴标签
+        ax.set_xticks(range(len(all_cities)))
+        ax.set_xticklabels(all_cities, rotation=45)
+        ax.set_yticks(range(len(last_7_days)))
+        ax.set_yticklabels([d.strftime('%m-%d') for d in last_7_days])
+        
+        ax.legend()
+        plt.tight_layout()
+        
+        # 转换为base64字符串
+        buffer = io.BytesIO()
+        plt.savefig(buffer, format='png', dpi=150, bbox_inches='tight')
+        buffer.seek(0)
+        image_base64 = base64.b64encode(buffer.getvalue()).decode()
+        plt.close()
+        
+        return image_base64
+    
+    # 生成三维线框图
+    def create_3d_wireframe_plot():
+        fig = plt.figure(figsize=(12, 8))
+        ax = fig.add_subplot(111, projection='3d')
+        
+        colors = ['red', 'blue', 'green', 'orange', 'purple', 'brown']
+        
+        for i, (status, Z) in enumerate(surface_data.items()):
+            if i < len(colors):
+                ax.plot_wireframe(X, Y, Z, color=colors[i], alpha=0.8, 
+                                linewidth=1, label=status)
+        
+        ax.set_xlabel('Cities')
+        ax.set_ylabel('Time')
+        ax.set_zlabel('Count')
+        ax.set_title('3D Wireframe Plot - Logistics Data')
+        
+        # 设置坐标轴标签
+        ax.set_xticks(range(len(all_cities)))
+        ax.set_xticklabels(all_cities, rotation=45)
+        ax.set_yticks(range(len(last_7_days)))
+        ax.set_yticklabels([d.strftime('%m-%d') for d in last_7_days])
+        
+        ax.legend()
+        plt.tight_layout()
+        
+        # 转换为base64字符串
+        buffer = io.BytesIO()
+        plt.savefig(buffer, format='png', dpi=150, bbox_inches='tight')
+        buffer.seek(0)
+        image_base64 = base64.b64encode(buffer.getvalue()).decode()
+        plt.close()
+        
+        return image_base64
+    
+    try:
+        # 生成三种类型的三维图
+        surface_plot = create_3d_surface_plot()
+        scatter_plot = create_3d_scatter_plot()
+        wireframe_plot = create_3d_wireframe_plot()
+        
+        return {
+            'surface_3d': surface_plot,
+            'scatter_3d': scatter_plot,
+            'wireframe_3d': wireframe_plot,
+            'data_info': {
+                'cities': all_cities,
+                'time_labels': [d.strftime('%m-%d') for d in last_7_days],
+                'statuses': all_statuses,
+                'surface_data': {k: v.tolist() for k, v in surface_data.items()}
+            }
+        }
+    except Exception as e:
+        print(f"生成三维图时出错: {e}")
+        return {
+            'surface_3d': None,
+            'scatter_3d': None,
+            'wireframe_3d': None,
+            'data_info': {
+                'cities': all_cities,
+                'time_labels': [d.strftime('%m-%d') for d in last_7_days],
+                'statuses': all_statuses,
+                'error': str(e)
+            }
+        }
 
 
 @app.route('/generate_code', methods=['POST'])

@@ -35,12 +35,20 @@
                     <canvas id="statusChart" width="400" height="300"></canvas>
                 </div>
                 <div class="chart-card">
-                    <h3>交付时间趋势</h3>
-                    <canvas id="trendChart" width="400" height="300"></canvas>
+                    <h3>三维曲面图</h3>
+                    <img id="surface3D" style="width: 100%; height: 400px; object-fit: contain;" alt="三维曲面图">
                 </div>
                 <div class="chart-card">
-                    <h3>地理位置分布</h3>
-                    <canvas id="locationChart" width="400" height="300"></canvas>
+                    <h3>三维散点图</h3>
+                    <img id="scatter3D" style="width: 100%; height: 400px; object-fit: contain;" alt="三维散点图">
+                </div>
+                <div class="chart-card">
+                    <h3>三维线框图</h3>
+                    <img id="wireframe3D" style="width: 100%; height: 400px; object-fit: contain;" alt="三维线框图">
+                </div>
+                <div class="chart-card">
+                    <h3>数据信息</h3>
+                    <div id="dataInfo" style="height: 300px; overflow-y: auto; background: #f8f9fa; padding: 10px; border-radius: 8px;"></div>
                 </div>
                 <div class="report-card">
                     <h3>AI分析报告</h3>
@@ -57,7 +65,7 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        let statusChart, trendChart, locationChart;
+        let statusChart;
         
         function createStatusChart(statusData) {
             const ctx = document.getElementById('statusChart').getContext('2d');
@@ -90,56 +98,73 @@
             });
         }
         
-        function createTrendChart(trendData) {
-            const ctx = document.getElementById('trendChart').getContext('2d');
-            if (trendChart) trendChart.destroy();
+        function display3DCharts(chartData) {
+            // 显示三维曲面图
+            if (chartData.surface_3d) {
+                document.getElementById('surface3D').src = 'data:image/png;base64,' + chartData.surface_3d;
+            } else {
+                document.getElementById('surface3D').src = '';
+                document.getElementById('surface3D').alt = '暂无三维曲面图数据';
+            }
             
-            trendChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: trendData.labels || ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
-                    datasets: [{
-                        label: '交付数量',
-                        data: trendData.data || [12, 19, 3, 5, 2, 3, 7],
-                        borderColor: '#36A2EB',
-                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    }
-                }
-            });
+            // 显示三维散点图
+            if (chartData.scatter_3d) {
+                document.getElementById('scatter3D').src = 'data:image/png;base64,' + chartData.scatter_3d;
+            } else {
+                document.getElementById('scatter3D').src = '';
+                document.getElementById('scatter3D').alt = '暂无三维散点图数据';
+            }
+            
+            // 显示三维线框图
+            if (chartData.wireframe_3d) {
+                document.getElementById('wireframe3D').src = 'data:image/png;base64,' + chartData.wireframe_3d;
+            } else {
+                document.getElementById('wireframe3D').src = '';
+                document.getElementById('wireframe3D').alt = '暂无三维线框图数据';
+            }
         }
         
-        function createLocationChart(locationData) {
-            const ctx = document.getElementById('locationChart').getContext('2d');
-            if (locationChart) locationChart.destroy();
+        function displayDataInfo(dataInfo) {
+            const dataInfoDiv = document.getElementById('dataInfo');
+            if (!dataInfo) {
+                dataInfoDiv.innerHTML = '<p>暂无数据信息</p>';
+                return;
+            }
             
-            locationChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: locationData.labels || ['北京', '上海', '广州', '深圳', '杭州'],
-                    datasets: [{
-                        label: '发货量',
-                        data: locationData.data || [20, 15, 10, 8, 12],
-                        backgroundColor: '#4BC0C0'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    }
+            let html = '<h4>三维数据信息</h4>';
+            
+            if (dataInfo.error) {
+                html += `<div style="color: red; padding: 10px; background: #ffe6e6; border-radius: 4px; margin: 10px 0;">错误: ${dataInfo.error}</div>`;
+            }
+            
+            html += '<div style="margin: 10px 0;">';
+            html += '<strong>城市列表:</strong> ';
+            html += (dataInfo.cities || []).join(', ') || '无';
+            html += '</div>';
+            
+            html += '<div style="margin: 10px 0;">';
+            html += '<strong>时间范围:</strong> ';
+            html += (dataInfo.time_labels || []).join(', ') || '无';
+            html += '</div>';
+            
+            html += '<div style="margin: 10px 0;">';
+            html += '<strong>状态类型:</strong> ';
+            html += (dataInfo.statuses || []).join(', ') || '无';
+            html += '</div>';
+            
+            if (dataInfo.surface_data) {
+                html += '<h5 style="margin-top: 15px;">数据矩阵预览</h5>';
+                html += '<div style="font-size: 12px; max-height: 200px; overflow-y: auto;">';
+                for (const [status, matrix] of Object.entries(dataInfo.surface_data)) {
+                    html += `<div style="margin: 5px 0;"><strong>${status}:</strong> `;
+                    html += `矩阵大小: ${matrix.length} x ${matrix[0] ? matrix[0].length : 0}`;
+                    html += `, 最大值: ${Math.max(...matrix.flat())}`;
+                    html += `, 总和: ${matrix.flat().reduce((a, b) => a + b, 0)}</div>`;
                 }
-            });
+                html += '</div>';
+            }
+            
+            dataInfoDiv.innerHTML = html;
         }
         
         $(function(){
@@ -158,8 +183,8 @@
                         
                         // 创建图表
                         createStatusChart(response.summary.status_distribution);
-                        createTrendChart(response.statistics.trend_data || {});
-                        createLocationChart(response.statistics.location_data || {});
+                        display3DCharts(response.statistics);
+                        displayDataInfo(response.statistics.data_info);
                     } else {
                         $('#analysisContent').html('<div class="error">'+response.message+'</div>');
                     }

@@ -99,15 +99,20 @@
         </div>
 
         <div class="chart-container">
-            <h3>今日交付趋势</h3>
-            <canvas id="realtimeTrendChart" width="400" height="200"></canvas>
+            <h3>实时三维曲面图</h3>
+            <img id="realtimeSurface3D" style="width: 100%; height: 300px; object-fit: contain;" alt="实时三维曲面图">
+        </div>
+        
+        <div class="chart-container">
+            <h3>实时三维散点图</h3>
+            <img id="realtimeScatter3D" style="width: 100%; height: 300px; object-fit: contain;" alt="实时三维散点图">
         </div>
     </div>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        let realtimeStatusChart, realtimeTrendChart;
+        let realtimeStatusChart;
         let autoRefreshInterval;
         let isAutoRefresh = true;
         
@@ -141,32 +146,22 @@
             });
         }
         
-        function createRealtimeTrendChart(trendData) {
-            const ctx = document.getElementById('realtimeTrendChart').getContext('2d');
-            if (realtimeTrendChart) realtimeTrendChart.destroy();
+        function displayRealtime3DCharts(chartData) {
+            // 显示实时三维曲面图
+            if (chartData.surface_3d) {
+                document.getElementById('realtimeSurface3D').src = 'data:image/png;base64,' + chartData.surface_3d;
+            } else {
+                document.getElementById('realtimeSurface3D').src = '';
+                document.getElementById('realtimeSurface3D').alt = '暂无实时三维曲面图数据';
+            }
             
-            realtimeTrendChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: trendData.labels || [],
-                    datasets: [{
-                        label: '交付数量',
-                        data: trendData.data || [],
-                        borderColor: '#22c55e',
-                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                        tension: 0.4,
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    }
-                }
-            });
+            // 显示实时三维散点图
+            if (chartData.scatter_3d) {
+                document.getElementById('realtimeScatter3D').src = 'data:image/png;base64,' + chartData.scatter_3d;
+            } else {
+                document.getElementById('realtimeScatter3D').src = '';
+                document.getElementById('realtimeScatter3D').alt = '暂无实时三维散点图数据';
+            }
         }
         
         function updateDashboard() {
@@ -193,7 +188,7 @@
                     
                     // 更新图表
                     createRealtimeStatusChart(response.summary.status_distribution);
-                    createRealtimeTrendChart(response.statistics.trend_data || {});
+                    displayRealtime3DCharts(response.statistics);
                 }
             }).fail(function() {
                 console.log('数据更新失败');
