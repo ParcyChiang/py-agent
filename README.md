@@ -28,7 +28,7 @@
    ```
 4.  下载模型(重要!!!!!!)
     ```bash
-    ollama pull qwen:0.5b
+    ollama pull gpt-oss:20b
     ```
 5. 创建并启动 mysql, 账号 root, 密码 rootroot
    - ###### mac(如果使用 Homebrew 安装)
