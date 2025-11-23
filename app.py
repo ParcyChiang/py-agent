@@ -83,7 +83,7 @@ def delete_csv():
 
 
 @app.route('/analyze', methods=['GET'])
-async def analyze_data():
+def analyze_data():
     """分析物流数据"""
     try:
         # 获取所有物流数据
@@ -95,9 +95,14 @@ async def analyze_data():
         # 获取每日统计
         daily_stats = data_manager.get_daily_stats()
 
-        # 使用AI分析数据
-        analysis = await model_handler.analyze_bulk_data(shipments)
-        daily_report = await model_handler.generate_daily_report(daily_stats, shipments)
+        # 使用AI分析数据（使用asyncio.run执行异步代码）
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            analysis = loop.run_until_complete(model_handler.analyze_bulk_data(shipments))
+            daily_report = loop.run_until_complete(model_handler.generate_daily_report(daily_stats, shipments))
+        finally:
+            loop.close()
 
         # 格式化响应
         analysis_html = format_ai_response(analysis['analysis'])
@@ -106,7 +111,8 @@ async def analyze_data():
         # 生成图表数据
         chart_data = _generate_chart_data(shipments, daily_stats)
         
-        return jsonify({
+        # 准备响应数据
+        response_data = {
             'success': True,
             'analysis': analysis_html,
             'daily_report': report_html,
@@ -121,7 +127,11 @@ async def analyze_data():
                 'total_records': len(shipments),
                 'status_distribution': model_handler._get_status_distribution(shipments)
             }
-        })
+        }
+        
+
+        
+        return jsonify(response_data)
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'分析失败: {str(e)}'})
@@ -136,7 +146,7 @@ def get_shipments():
 
 
 @app.route('/shipment/<shipment_id>', methods=['GET'])
-async def get_shipment(shipment_id):
+def get_shipment(shipment_id):
     """获取单个物流详情和分析"""
     shipment = data_manager.get_shipment_by_id(shipment_id)
     if not shipment:
@@ -144,9 +154,14 @@ async def get_shipment(shipment_id):
 
     events = data_manager.get_shipment_events(shipment_id)
 
-    # 使用AI分析
-    analysis = await model_handler.analyze_shipment_data(shipment)
-    prediction = await model_handler.predict_delivery_time(shipment, events)
+    # 使用AI分析（使用asyncio.run执行异步代码）
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        analysis = loop.run_until_complete(model_handler.analyze_shipment_data(shipment))
+        prediction = loop.run_until_complete(model_handler.predict_delivery_time(shipment, events))
+    finally:
+        loop.close()
 
     # 格式化响应
     analysis_html = format_ai_response(analysis['analysis'])
@@ -484,6 +499,8 @@ async def generate_code():
         
         code = code.strip()
         
+
+        
         return jsonify({
             'success': True,
             'code': code
@@ -579,10 +596,14 @@ def execute_code():
             error = captured_error.getvalue()
             
             if error:
+
+                
                 return jsonify({
                     'success': False,
                     'error': f'执行错误:\n{error}'
                 })
+            
+
             
             return jsonify({
                 'success': True,
@@ -591,6 +612,8 @@ def execute_code():
             
         except Exception as e:
             error_msg = f'代码执行异常:\n{str(e)}\n\n{traceback.format_exc()}'
+
+            
             return jsonify({
                 'success': False,
                 'error': error_msg
@@ -602,6 +625,8 @@ def execute_code():
             sys.stderr = old_stderr
             
     except Exception as e:
+
+        
         return jsonify({
             'success': False,
             'error': f'执行请求失败: {str(e)}'
