@@ -209,7 +209,6 @@ __marimo__/
 # 自定义规则
 # 忽略 logistics.db 数据库文件
 logistics.db
-thesis_proposal_outline.md
 
 # 确保 .html 文件不被忽略（但通常不需要特别设置，除非前面有规则忽略了它们）
 !*.html

@@ -52,6 +52,9 @@ def page_dashboard():
 def page_code_generator():
     return render_template('code_generator.html')
 
+@app.route('/page/admin_log')
+def page_code_generator():
+    return render_template('admin_log.html')
 
 @app.route('/upload', methods=['POST'])
 def upload_file():

@@ -29,7 +29,7 @@ def create_data_manager():
     )
 
 
-def create_model_handler(model_name: str = "qwen:0.5b"):
+def create_model_handler(model_name: str = "deepseek-r1:1.5b"):
     """创建并返回OllamaModelHandler实例"""
     return OllamaModelHandler(model_name)
 
@@ -473,7 +473,7 @@ class LogisticsDataManager:
 class OllamaModelHandler:
     """Ollama模型处理器"""
 
-    def __init__(self, model_name: str = "qwen:0.5b"):
+    def __init__(self, model_name: str = "deepseek-r1:1.5b"):
         self.model_name = model_name
 
     async def generate_response(self, prompt: str, context: str = "") -> str:
