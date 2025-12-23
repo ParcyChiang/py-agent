@@ -29,7 +29,7 @@ def create_data_manager():
     )
 
 
-def create_model_handler(model_name: str = "deepseek-r1:1.5b"):
+def create_model_handler(model_name: str = "qwen:0.5b"):
     """创建并返回OllamaModelHandler实例"""
     return OllamaModelHandler(model_name)
 
@@ -440,29 +440,37 @@ class LogisticsDataManager:
             conn.close()
 
     def get_daily_stats(self, date: str = None) -> Dict[str, Any]:
-        """获取每日统计信息"""
-        if not date:
-            date = datetime.now().strftime("%Y-%m-%d")
-
+        """获取每日统计信息，如果没有指定日期，则获取所有日期的累计统计"""
         conn = self._get_connection()
         try:
             with conn.cursor() as cursor:
-                cursor.execute('SELECT COUNT(*) AS c FROM shipments WHERE DATE(created_at) = %s', (date,))
-                total_shipments = cursor.fetchone()["c"]
-
-                cursor.execute('SELECT COUNT(*) AS c FROM shipments WHERE DATE(actual_delivery) = %s', (date,))
-                delivered = cursor.fetchone()["c"]
-
-                cursor.execute(
-                    'SELECT COUNT(*) AS c FROM shipments WHERE status = %s AND actual_delivery > estimated_delivery AND DATE(actual_delivery) = %s',
-                    ("delivered", date,),
-                )
-                delayed = cursor.fetchone()["c"]
+                if date:
+                    # 如果有指定日期，获取该日期的数据
+                    cursor.execute('SELECT COUNT(*) AS c FROM shipments WHERE DATE(created_at) = %s', (date,))
+                    total_shipments = cursor.fetchone()["c"]
+                    cursor.execute('SELECT COUNT(*) AS c FROM shipments WHERE DATE(actual_delivery) = %s', (date,))
+                    delivered = cursor.fetchone()["c"]
+                    cursor.execute(
+                        'SELECT COUNT(*) AS c FROM shipments WHERE status = %s AND actual_delivery > estimated_delivery AND DATE(actual_delivery) = %s',
+                        ("delivered", date,),
+                    )
+                    delayed = cursor.fetchone()["c"]
+                else:
+                    # 如果没有指定日期，获取所有数据的累计统计
+                    cursor.execute('SELECT COUNT(*) AS c FROM shipments')
+                    total_shipments = cursor.fetchone()["c"]
+                    cursor.execute('SELECT COUNT(*) AS c FROM shipments WHERE actual_delivery IS NOT NULL')
+                    delivered = cursor.fetchone()["c"]
+                    cursor.execute(
+                        'SELECT COUNT(*) AS c FROM shipments WHERE status = %s AND actual_delivery > estimated_delivery',
+                        ("delivered",),
+                    )
+                    delayed = cursor.fetchone()["c"]
         finally:
             conn.close()
 
         return {
-            "date": date,
+            "date": date if date else "all",
             "total_shipments": total_shipments,
             "delivered": delivered,
             "delayed": delayed,

@@ -13,7 +13,7 @@ from flask import Flask, render_template, request, jsonify
 from models import create_data_manager, create_model_handler
 from utils import format_ai_response
 from collections import Counter, defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, date, timedelta
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB限制
@@ -199,17 +199,23 @@ def _generate_chart_data(shipments, daily_stats):
         print(f"第一条数据字段: {list(shipments[0].keys())}")
         print(f"第一条数据示例: {shipments[0]}")
     
-    def _parse_date_str(date_str):
-        if not date_str:
+    def _parse_date_str(date_value):
+        if not date_value:
             return None
+        # 如果已经是日期或datetime对象，直接转换
+        if isinstance(date_value, datetime):
+            return date_value.date()
+        if isinstance(date_value, date):
+            return date_value
+        # 否则，尝试将字符串转换
         try:
-            return datetime.fromisoformat(str(date_str).replace('Z', '+00:00')).date()
+            return datetime.fromisoformat(str(date_value).replace('Z', '+00:00')).date()
         except Exception:
             try:
-                return datetime.strptime(str(date_str), '%Y-%m-%d').date()
+                return datetime.strptime(str(date_value), '%Y-%m-%d').date()
             except Exception:
                 try:
-                    return datetime.strptime(str(date_str), '%Y-%m-%d %H:%M:%S').date()
+                    return datetime.strptime(str(date_value), '%Y-%m-%d %H:%M:%S').date()
                 except Exception:
                     return None
 
