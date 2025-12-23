@@ -592,11 +592,22 @@ class OllamaModelHandler:
         }
 
     def _get_status_distribution(self, shipments_data: List[Dict]) -> Dict[str, int]:
-        """获取状态分布"""
+        """获取状态分布（返回中文状态名称）"""
         distribution = {}
+        status_cn_map = {
+            'delivered': '已送达',
+            'failed_delivery': '配送失败',
+            'in_transit': '运输中',
+            'out_for_delivery': '派件中',
+            'pending': '待处理',
+            'picked_up': '已揽件',
+            'processing': '处理中',
+            'returned': '已退回'
+        }
         for shipment in shipments_data:
             status = shipment.get('status', 'unknown')
-            distribution[status] = distribution.get(status, 0) + 1
+            cn_status = status_cn_map.get(status, status)
+            distribution[cn_status] = distribution.get(cn_status, 0) + 1
         return distribution
 
     def _calculate_average_weight(self, shipments_data: List[Dict]) -> float:

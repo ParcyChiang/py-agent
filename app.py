@@ -222,6 +222,18 @@ def _generate_chart_data(shipments, daily_stats):
     # 准备三维数据：时间 x 城市 x 状态
     time_city_status_data = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
     
+    # 状态英文到中文的映射
+    status_cn_map = {
+        'delivered': '已送达',
+        'failed_delivery': '配送失败',
+        'in_transit': '运输中',
+        'out_for_delivery': '派件中',
+        'pending': '待处理',
+        'picked_up': '已揽件',
+        'processing': '处理中',
+        'returned': '已退回'
+    }
+    
     for shipment in shipments:
         # 优先使用actual_delivery，如果为空则使用created_at
         delivery_date = _parse_date_str(shipment.get('actual_delivery'))
@@ -235,9 +247,12 @@ def _generate_chart_data(shipments, daily_stats):
         city = shipment.get('origin_city', '未知城市')
         status = shipment.get('status', '未知状态')
         
+        # 将状态转换为中文
+        status_cn = status_cn_map.get(status, status)  # 如果没有匹配的映射，保留原状态
+        
         # 确保城市和状态不为空
-        if city and city != '未知城市' and status and status != '未知状态':
-            time_city_status_data[delivery_date][city][status] += 1
+        if city and city != '未知城市' and status_cn and status_cn != '未知状态':
+            time_city_status_data[delivery_date][city][status_cn] += 1
     
     # 调试信息
     print(f"处理后的数据点数量: {sum(sum(sum(city_data.values()) for city_data in day_data.values()) for day_data in time_city_status_data.values())}")
@@ -268,6 +283,12 @@ def _generate_chart_data(shipments, daily_stats):
         # 如果数据少于7天，使用所有可用日期
         last_7_days = all_dates
     
+    # 定义所有可能的状态（确保包括所有常用状态）
+    all_possible_statuses = [
+        '已送达', '配送失败', '运输中', '派件中',
+        '待处理', '已揽件', '处理中', '已退回'
+    ]
+    
     all_cities = set()
     all_statuses = set()
     for day_data in time_city_status_data.values():
@@ -276,8 +297,12 @@ def _generate_chart_data(shipments, daily_stats):
             for status in day_data[city].keys():
                 all_statuses.add(status)
     
+    # 合并所有可能的状态到实际状态中
+    for status in all_possible_statuses:
+        all_statuses.add(status)
+    
     all_cities = sorted(list(all_cities))[:8]  # 限制前8个城市
-    all_statuses = sorted(list(all_statuses))[:6]  # 限制前6个状态
+    all_statuses = sorted(list(all_statuses))  # 允许所有状态
     
     # 创建三维数据矩阵
     X = np.arange(len(all_cities))  # 城市索引
@@ -305,10 +330,10 @@ def _generate_chart_data(shipments, daily_stats):
                 surf = ax.plot_surface(X, Y, Z, alpha=0.7, color=colors[i], 
                                      label=status, linewidth=0, antialiased=True)
         
-        ax.set_xlabel('Cities')
-        ax.set_ylabel('Time')
-        ax.set_zlabel('Count')
-        ax.set_title('3D Surface Plot - Logistics Data')
+        ax.set_xlabel('城市')
+        ax.set_ylabel('时间')
+        ax.set_zlabel('数量')
+        ax.set_title('三维曲面图 - 物流数据')
         
         # 设置坐标轴标签
         ax.set_xticks(range(len(all_cities)))
@@ -349,10 +374,10 @@ def _generate_chart_data(shipments, daily_stats):
                     ax.scatter(x_data, y_data, z_data, c=colors[i], 
                              label=status, s=50, alpha=0.7)
         
-        ax.set_xlabel('Cities')
-        ax.set_ylabel('Time')
-        ax.set_zlabel('Count')
-        ax.set_title('3D Scatter Plot - Logistics Data')
+        ax.set_xlabel('城市')
+        ax.set_ylabel('时间')
+        ax.set_zlabel('数量')
+        ax.set_title('三维散点图 - 物流数据')
         
         # 设置坐标轴标签
         ax.set_xticks(range(len(all_cities)))
@@ -384,10 +409,10 @@ def _generate_chart_data(shipments, daily_stats):
                 ax.plot_wireframe(X, Y, Z, color=colors[i], alpha=0.8, 
                                 linewidth=1, label=status)
         
-        ax.set_xlabel('Cities')
-        ax.set_ylabel('Time')
-        ax.set_zlabel('Count')
-        ax.set_title('3D Wireframe Plot - Logistics Data')
+        ax.set_xlabel('城市')
+        ax.set_ylabel('时间')
+        ax.set_zlabel('数量')
+        ax.set_title('三维线框图 - 物流数据')
         
         # 设置坐标轴标签
         ax.set_xticks(range(len(all_cities)))
