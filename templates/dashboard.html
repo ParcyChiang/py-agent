@@ -559,15 +559,41 @@
                     shipmentsData.push(shipmentsMap[date] || 0);
                 });
                 
+                // 格式化日期显示为年月日
+                const formattedDates = dates.map(date => {
+                    // 检查日期格式，如果是ISO格式（如2025-12-25）则直接使用
+                    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+                        return date;
+                    }
+                    // 否则尝试解析并格式化
+                    const d = new Date(date);
+                    if (!isNaN(d.getTime())) {
+                        const year = d.getFullYear();
+                        const month = String(d.getMonth() + 1).padStart(2, '0');
+                        const day = String(d.getDate()).padStart(2, '0');
+                        return `${year}-${month}-${day}`;
+                    }
+                    // 如果无法解析，保留原始日期
+                    return date;
+                });
+                
+                // 计算y轴最大值（找到所有数据点的最大值，然后向上取整到合适的值）
+                const allData = [...deliveredData, ...inTransitData, ...shipmentsData];
+                const maxValue = Math.max(...allData);
+                // 找到最高拐点后，向上取整到合适的数值（如100的倍数）
+                const yMax = Math.ceil(maxValue / 100) * 100;
+                
                 console.log('Processing data - dates:', dates);
+                console.log('Formatted dates:', formattedDates);
                 console.log('Delivered data:', deliveredData);
                 console.log('In transit data:', inTransitData);
                 console.log('Shipments data:', shipmentsData);
+                console.log('Calculated yMax:', yMax);
                 
                 dailyTrendChart = new Chart(ctx, {
                     type: 'line',
                     data: {
-                        labels: dates,
+                        labels: formattedDates,
                         datasets: [{
                             label: '交付量',
                             data: deliveredData,
@@ -606,7 +632,15 @@
                         scales: {
                             y: {
                                 beginAtZero: true,
-                                max: 1000
+                                max: yMax
+                            },
+                            x: {
+                                // 确保x轴标签显示为年月日格式
+                                ticks: {
+                                    callback: function(value, index, values) {
+                                        return values[index];
+                                    }
+                                }
                             }
                         }
                     }
