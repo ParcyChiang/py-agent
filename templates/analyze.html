@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>运营分析 - 物流智能分析</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="container">
@@ -28,9 +31,9 @@
             <button id="analyzeBtn">分析物流数据</button>
             <div class="results">
                 <div class="stats-card">
-                      <h3>数据概览</h3>
-                      <div id="statsContent">请先上传数据</div>
-                  </div>
+                    <h3>数据概览</h3>
+                    <div id="statsContent">请先上传数据</div>
+                </div>
                 <div class="chart-card">
                     <h3>物流状态分布</h3>
                     <canvas id="statusChart" width="400" height="300"></canvas>
@@ -49,16 +52,16 @@
                 </div>
                 <div class="chart-card">
                     <h3>数据信息</h3>
-                    <div id="dataInfo" style="height: 300px; overflow-y: auto; background: #f8f9fa; padding: 10px; border-radius: 8px;"></div>
+                    <div id="dataInfo" style="height: 300px; overflow-y: auto;"></div>
                 </div>
                 <div class="report-card">
-                      <h3>AI分析报告</h3>
-                      <div id="analysisContent">点击"分析物流数据"生成报告</div>
-                  </div>
+                    <h3>AI分析报告</h3>
+                    <div id="analysisContent">点击"分析物流数据"生成报告</div>
+                </div>
                 <div class="report-card">
-                      <h3>每日运营报告</h3>
-                      <div id="dailyReportContent">点击"分析物流数据"生成日报</div>
-                  </div>
+                    <h3>每日运营报告</h3>
+                    <div id="dailyReportContent">点击"分析物流数据"生成日报</div>
+                </div>
             </div>
         </div>
     </div>

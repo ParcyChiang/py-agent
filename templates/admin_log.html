@@ -1,11 +1,17 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>管理员日志</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日志中心 - 物流智能分析</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <header>
+    <div class="container">
+        <header>
             <h1>日志中心</h1>
             <p>记录用户操作。</p>
         </header>
@@ -20,5 +26,38 @@
             <a class="secondary" href="/page/code_generator">代码生成器</a>
             <a class="secondary" href="/page/admin_log">日志中心</a>
         </nav>
+
+        <main>
+            <div class="analysis-section">
+                <button id="loadLogsBtn">加载日志</button>
+                <div class="report-card">
+                    <h3>操作日志</h3>
+                    <div id="logsContent">点击按钮加载日志</div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(function(){
+            $('#loadLogsBtn').on('click', function() {
+                $('#logsContent').html('加载中...');
+                $.getJSON('/admin_log', function(response) {
+                    if (response.success) {
+                        var logsHtml = '';
+                        response.logs.forEach(function(log) {
+                            logsHtml += '<p><strong>' + log.timestamp + '</strong> - ' + log.user + ' - ' + log.action + '</p>';
+                        });
+                        $('#logsContent').html(logsHtml);
+                    } else {
+                        $('#logsContent').html('<div class="error">' + response.message + '</div>');
+                    }
+                }).fail(function() {
+                    $('#logsContent').html('<div class="error">加载失败，请重试</div>');
+                });
+            });
+        });
+    </script>
 </body>
 </html>
