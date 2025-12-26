@@ -477,6 +477,48 @@ class LogisticsDataManager:
             "on_time_rate": (delivered - delayed) / delivered * 100 if delivered > 0 else 0
         }
 
+    def get_daily_trend(self) -> Dict[str, List[Dict]]:
+        """获取每日趋势数据"""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cursor:
+                # 获取按日期分组的发货量
+                cursor.execute('''
+                    SELECT DATE(created_at) AS date, COUNT(*) AS shipments
+                    FROM shipments
+                    GROUP BY DATE(created_at)
+                    ORDER BY date
+                ''')
+                daily_shipments = cursor.fetchall()
+                
+                # 获取按日期分组的交付量
+                cursor.execute('''
+                    SELECT DATE(actual_delivery) AS date, COUNT(*) AS delivered
+                    FROM shipments
+                    WHERE actual_delivery IS NOT NULL
+                    GROUP BY DATE(actual_delivery)
+                    ORDER BY date
+                ''')
+                daily_delivered = cursor.fetchall()
+                
+                # 获取按日期分组的运输中量
+                cursor.execute('''
+                    SELECT DATE(created_at) AS date, COUNT(*) AS in_transit
+                    FROM shipments
+                    WHERE status = 'in_transit'
+                    GROUP BY DATE(created_at)
+                    ORDER BY date
+                ''')
+                daily_in_transit = cursor.fetchall()
+        finally:
+            conn.close()
+        
+        return {
+            "shipments": daily_shipments,
+            "delivered": daily_delivered,
+            "in_transit": daily_in_transit
+        }
+
 
 class OllamaModelHandler:
     """Ollama模型处理器"""

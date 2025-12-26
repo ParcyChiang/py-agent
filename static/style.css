@@ -7,6 +7,59 @@ body {
     color: #333;
 }
 
+/* 图表区域样式 */
+.charts-section {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 24px;
+    margin: 24px 0;
+}
+
+.chart-container {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,.04);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.chart-container h3 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 18px;
+    color: #2c3e50;
+}
+
+#dailyTrendChart {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.square-chart-container {
+    width: 400px !important;
+    height: 500px !important; /* 包含标题的总高度 */
+    margin: 0 auto;
+    position: relative;
+}
+
+.square-chart-wrapper {
+    width: 400px !important;
+    height: 400px !important; /* 正方形图表的高度 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+}
+
+.square-chart-wrapper canvas {
+    width: 400px !important;
+    height: 400px !important;
+    object-fit: cover;
+}
+
 .container {
     max-width: 1200px;
     margin: 0 auto;

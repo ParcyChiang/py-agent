@@ -97,6 +97,8 @@ def analyze_data():
 
         # 获取每日统计
         daily_stats = data_manager.get_daily_stats()
+        # 获取每日趋势数据
+        daily_trend = data_manager.get_daily_trend()
 
         # 使用AI分析数据（使用asyncio.run执行异步代码）
         loop = asyncio.new_event_loop()
@@ -124,7 +126,8 @@ def analyze_data():
                 'surface_3d': chart_data['surface_3d'],
                 'scatter_3d': chart_data['scatter_3d'],
                 'wireframe_3d': chart_data['wireframe_3d'],
-                'data_info': chart_data['data_info']
+                'data_info': chart_data['data_info'],
+                'daily_trend': daily_trend  # 添加每日趋势数据
             },
             'summary': {
                 'total_records': len(shipments),
