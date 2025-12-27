@@ -29,7 +29,7 @@
 
         <main>
             <div class="code-container">
-                <h3>💡 提问并生成Python代码</h3>
+                <h3>提问并生成Python代码</h3>
                 <p>描述您想要的分析任务，AI将为您生成相应的Python代码：</p>
                 
                 <textarea 
@@ -39,30 +39,30 @@
                 ></textarea>
                 
                 <div class="example-questions">
-                    <h4>📋 示例问题：</h4>
+                    <h4>示例问题：</h4>
                     <div class="example-question" onclick="setQuestion('分析物流数据中不同状态的包裹数量分布，并生成饼图')">
-                        📊 分析物流数据中不同状态的包裹数量分布，并生成饼图
+                        分析物流数据中不同状态的包裹数量分布，并生成饼图
                     </div>
                     <div class="example-question" onclick="setQuestion('计算每个城市的平均配送时间，并找出配送时间最长的前5个城市')">
-                        ⏱️ 计算每个城市的平均配送时间，并找出配送时间最长的前5个城市
+                        计算每个城市的平均配送时间，并找出配送时间最长的前5个城市
                     </div>
                     <div class="example-question" onclick="setQuestion('分析不同快递公司的配送效率，比较它们的平均配送时间和成功率')">
-                        🚚 分析不同快递公司的配送效率，比较它们的平均配送时间和成功率
+                        分析不同快递公司的配送效率，比较它们的平均配送时间和成功率
                     </div>
                     <div class="example-question" onclick="setQuestion('生成物流数据的月度趋势分析，包括发货量、配送时间等关键指标')">
-                        📈 生成物流数据的月度趋势分析，包括发货量、配送时间等关键指标
+                        生成物流数据的月度趋势分析，包括发货量、配送时间等关键指标
                     </div>
                 </div>
                 
                 <div class="btn-group">
                     <button class="btn btn-primary" onclick="generateCode()">
-                        🤖 生成Python代码
+                        生成Python代码
                     </button>
                     <button class="btn btn-success" onclick="executeCode()" id="executeBtn" disabled>
-                        ▶️ 执行代码
+                        执行代码
                     </button>
                     <button class="btn btn-danger" onclick="clearAll()">
-                        🗑️ 清空
+                        清空
                     </button>
                 </div>
             </div>
@@ -73,12 +73,12 @@
             </div>
 
             <div class="code-container" id="codeContainer" style="display: none;">
-                <h3>🐍 生成的Python代码：</h3>
+                <h3>生成的Python代码：</h3>
                 <div class="code-editor" id="generatedCode"></div>
             </div>
 
             <div class="code-container" id="outputContainer" style="display: none;">
-                <h3>📤 执行结果：</h3>
+                <h3>执行结果：</h3>
                 <div class="output-container" id="executionOutput"></div>
             </div>
         </main>
