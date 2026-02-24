@@ -171,9 +171,14 @@
                         <label for="statusFilter">状态筛选：</label>
                         <select id="statusFilter" class="form-control">
                             <option value="all">全部</option>
-                            <option value="delivered">已交付</option>
-                            <option value="transit">运输中</option>
-                            <option value="pending">待处理</option>
+                            <option value="已交付">已交付</option>
+                            <option value="运输中">运输中</option>
+                            <option value="待处理">待处理</option>
+                            <option value="派件中">派件中</option>
+                            <option value="已揽件">已揽件</option>
+                            <option value="处理中">处理中</option>
+                            <option value="配送失败">配送失败</option>
+                            <option value="已退回">已退回</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -469,7 +474,43 @@
             
             const totalPages = Math.ceil(total / pageSize);
             if (totalPages > 0) {
-                for (let i = 1; i <= totalPages; i++) {
+                // 分页容器
+                const paginationContainer = document.createElement('div');
+                paginationContainer.className = 'd-flex justify-content-between align-items-center w-100';
+                
+                // 左侧：总记录数
+                const totalInfo = document.createElement('div');
+                totalInfo.className = 'total-info';
+                totalInfo.textContent = `共 ${total} 条记录`;
+                paginationContainer.appendChild(totalInfo);
+                
+                // 中间：页码按钮
+                const pageButtons = document.createElement('div');
+                pageButtons.className = 'page-buttons';
+                
+                // 计算显示的页码范围
+                let startPage = Math.max(1, currentPage - 2);
+                let endPage = Math.min(totalPages, startPage + 5);
+                
+                // 调整起始页码，确保显示6个页码
+                if (endPage - startPage < 5) {
+                    startPage = Math.max(1, endPage - 5);
+                }
+                
+                // 上一页按钮
+                if (currentPage > 1) {
+                    const prevBtn = document.createElement('button');
+                    prevBtn.className = 'pagination-btn';
+                    prevBtn.textContent = '上一页';
+                    prevBtn.addEventListener('click', () => {
+                        currentPage = Math.max(1, currentPage - 1);
+                        renderTable();
+                    });
+                    pageButtons.appendChild(prevBtn);
+                }
+                
+                // 页码按钮
+                for (let i = startPage; i <= endPage; i++) {
                     const btn = document.createElement('button');
                     btn.className = `pagination-btn ${i === currentPage ? 'active' : ''}`;
                     btn.textContent = i;
@@ -477,8 +518,51 @@
                         currentPage = i;
                         renderTable();
                     });
-                    pagination.appendChild(btn);
+                    pageButtons.appendChild(btn);
                 }
+                
+                // 下一页按钮
+                if (currentPage < totalPages) {
+                    const nextBtn = document.createElement('button');
+                    nextBtn.className = 'pagination-btn';
+                    nextBtn.textContent = '下一页';
+                    nextBtn.addEventListener('click', () => {
+                        currentPage = Math.min(totalPages, currentPage + 1);
+                        renderTable();
+                    });
+                    pageButtons.appendChild(nextBtn);
+                }
+                
+                paginationContainer.appendChild(pageButtons);
+                
+                // 右侧：跳转到指定页
+                const jumpToPage = document.createElement('div');
+                jumpToPage.className = 'jump-to-page';
+                jumpToPage.innerHTML = `
+                    <span>前往第</span>
+                    <input type="number" id="jumpPageInput" min="1" max="${totalPages}" value="${currentPage}" style="width: 60px; margin: 0 5px; padding: 2px 4px; border: 1px solid #dee2e6; border-radius: 4px;">
+                    <span>页</span>
+                    <button id="jumpPageBtn" class="pagination-btn" style="margin-left: 5px;">确定</button>
+                `;
+                paginationContainer.appendChild(jumpToPage);
+                
+                pagination.appendChild(paginationContainer);
+                
+                // 添加跳转按钮事件
+                document.getElementById('jumpPageBtn').addEventListener('click', () => {
+                    const jumpPage = parseInt(document.getElementById('jumpPageInput').value);
+                    if (jumpPage >= 1 && jumpPage <= totalPages) {
+                        currentPage = jumpPage;
+                        renderTable();
+                    }
+                });
+                
+                // 添加回车键事件
+                document.getElementById('jumpPageInput').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        document.getElementById('jumpPageBtn').click();
+                    }
+                });
             }
         };
         
