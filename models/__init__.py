@@ -13,7 +13,6 @@ logger = logging.getLogger("LogisticsAgent")
 
 
 def create_data_manager():
-    """创建并返回基于 MySQL 的 LogisticsDataManager 实例"""
     mysql_host = os.getenv("MYSQL_HOST", "127.0.0.1")
     mysql_port = int(os.getenv("MYSQL_PORT", "3306"))
     mysql_user = os.getenv("MYSQL_USER", "root")
@@ -30,13 +29,10 @@ def create_data_manager():
 
 
 def create_model_handler(model_name: str = "qwen:0.5b"):
-    """创建并返回OllamaModelHandler实例"""
     return OllamaModelHandler(model_name)
 
 
 class LogisticsDataManager:
-    """物流数据管理器，使用 MySQL 存储数据"""
-
     def __init__(self, host: str, port: int, user: str, password: str, database: str):
         self.host = host
         self.port = port
@@ -59,7 +55,6 @@ class LogisticsDataManager:
         )
 
     def _ensure_database(self):
-        """确保数据库存在"""
         conn = pymysql.connect(
             host=self.host,
             port=self.port,
@@ -78,7 +73,6 @@ class LogisticsDataManager:
             conn.close()
 
     def _init_database(self):
-        """初始化数据库（表结构）"""
         conn = self._get_connection()
         try:
             with conn.cursor() as cursor:
@@ -128,7 +122,6 @@ class LogisticsDataManager:
             conn.close()
 
     def import_from_csv(self, file_path: str) -> Dict[str, Any]:
-        """从CSV文件导入数据"""
         try:
             df = pd.read_csv(file_path)
             logger.info(f"CSV列名: {list(df.columns)}")

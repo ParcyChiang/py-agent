@@ -52,6 +52,10 @@ def page_dashboard():
 def page_code_generator():
     return render_template('code_generator.html')
 
+@app.route('/page/new_dashboard')
+def page_new_dashboard():
+    return render_template('new_dashboard.html')
+
 # @app.route('/page/admin_log')
 # def page_code_generator():
 #     return render_template('admin_log.html')
@@ -718,6 +722,215 @@ def execute_code():
             'success': False,
             'error': f'执行请求失败: {str(e)}'
         })
+
+
+@app.route('/api/dashboard/trend', methods=['GET'])
+def get_dashboard_trend():
+    """获取动态看板趋势数据"""
+    try:
+        granularity = request.args.get('granularity', 'realtime')
+        shipments = data_manager.get_all_shipments(limit=10000)
+        
+        if not shipments:
+            return jsonify({'success': False, 'message': '没有可用的数据'})
+        
+        # 生成趋势数据
+        trend_data = []
+        now = datetime.now()
+        
+        # 根据时间粒度生成不同数量的数据点
+        if granularity == 'realtime':
+            points = 60
+            interval = 1  # 1秒
+        elif granularity == '1min':
+            points = 60
+            interval = 60  # 1分钟
+        else:  # 5min
+            points = 60
+            interval = 300  # 5分钟
+        
+        for i in range(points):
+            time = now - timedelta(seconds=i * interval)
+            # 模拟数据：基于实际数据生成趋势
+            base_value = len(shipments) // 100
+            random_factor = (hash(str(time)) % 100) / 100
+            value = base_value + int(random_factor * 100)
+            
+            trend_data.append({
+                'time': time.strftime('%H:%M:%S'),
+                'value': value
+            })
+        
+        return jsonify({
+            'success': True,
+            'data': trend_data[::-1]  # 反转使时间从早到晚
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'获取趋势数据失败: {str(e)}'})
+
+
+@app.route('/api/dashboard/metrics', methods=['GET'])
+def get_dashboard_metrics():
+    """获取动态看板指标数据"""
+    try:
+        shipments = data_manager.get_all_shipments(limit=10000)
+        
+        if not shipments:
+            return jsonify({'success': False, 'message': '没有可用的数据'})
+        
+        # 计算指标
+        total = len(shipments)
+        delivered = sum(1 for s in shipments if s.get('status') == 'delivered')
+        in_transit = sum(1 for s in shipments if s.get('status') == 'in_transit')
+        delivery_rate = (delivered / total * 100) if total > 0 else 0
+        
+        # 计算平均时效
+        delivery_times = []
+        for s in shipments:
+            if s.get('actual_delivery') and s.get('created_at'):
+                try:
+                    created = datetime.fromisoformat(str(s['created_at']).replace('Z', '+00:00'))
+                    delivered = datetime.fromisoformat(str(s['actual_delivery']).replace('Z', '+00:00'))
+                    hours = (delivered - created).total_seconds() / 3600
+                    delivery_times.append(hours)
+                except:
+                    pass
+        
+        avg_delivery_time = sum(delivery_times) / len(delivery_times) if delivery_times else 0
+        
+        # 模拟中转仓效率和异常率
+        warehouse_efficiency = 75 + (hash(str(datetime.now())) % 20)
+        exception_rate = 5 + (hash(str(datetime.now())) % 10)
+        
+        # 生成趋势
+        def generate_trend():
+            return round((hash(str(datetime.now())) % 200 - 100) / 10, 1)
+        
+        metrics = [
+            {
+                'name': '今日交付',
+                'value': delivered,
+                'trend': generate_trend(),
+                'trendUp': hash(str(datetime.now())) % 2 == 0
+            },
+            {
+                'name': '运输中',
+                'value': in_transit,
+                'trend': generate_trend(),
+                'trendUp': hash(str(datetime.now())) % 2 == 0
+            },
+            {
+                'name': '交付率',
+                'value': f'{delivery_rate:.1f}%',
+                'trend': generate_trend(),
+                'trendUp': hash(str(datetime.now())) % 2 == 0
+            },
+            {
+                'name': '平均时效',
+                'value': f'{avg_delivery_time:.1f}小时',
+                'trend': generate_trend(),
+                'trendUp': hash(str(datetime.now())) % 2 == 1  # 时效越低越好
+            },
+            {
+                'name': '中转仓效率',
+                'value': f'{warehouse_efficiency:.1f}%',
+                'trend': generate_trend(),
+                'trendUp': hash(str(datetime.now())) % 2 == 0
+            },
+            {
+                'name': '异常率',
+                'value': f'{exception_rate:.1f}%',
+                'trend': generate_trend(),
+                'trendUp': hash(str(datetime.now())) % 2 == 1  # 异常率越低越好
+            }
+        ]
+        
+        return jsonify({
+            'success': True,
+            'data': metrics
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'获取指标数据失败: {str(e)}'})
+
+
+@app.route('/api/dashboard/table', methods=['GET'])
+def get_dashboard_table():
+    """获取动态看板表格数据"""
+    try:
+        page = request.args.get('page', 1, type=int)
+        pageSize = request.args.get('pageSize', 10, type=int)
+        status_filter = request.args.get('status', 'all')
+        search = request.args.get('search', '')
+        sortField = request.args.get('sortField', 'time')
+        sortDirection = request.args.get('sortDirection', 'desc')
+        
+        shipments = data_manager.get_all_shipments(limit=10000)
+        
+        if not shipments:
+            return jsonify({'success': False, 'message': '没有可用的数据'})
+        
+        # 状态映射
+        status_map = {
+            'delivered': '已交付',
+            'in_transit': '运输中',
+            'pending': '待处理',
+            'out_for_delivery': '派件中',
+            'picked_up': '已揽件',
+            'processing': '处理中',
+            'failed_delivery': '配送失败',
+            'returned': '已退回'
+        }
+        
+        # 转换数据格式
+        table_data = []
+        for s in shipments:
+            status_cn = status_map.get(s.get('status'), s.get('status', '未知'))
+            
+            table_data.append({
+                'orderId': s.get('id', ''),
+                'company': s.get('courier_company', '未知'),
+                'status': status_cn,
+                'origin': s.get('origin_city', s.get('origin', '未知')),
+                'destination': s.get('destination_city', s.get('destination', '未知')),
+                'time': s.get('created_at', ''),
+                'value': str(s.get('shipping_fee', 0))
+            })
+        
+        # 筛选
+        if status_filter != 'all':
+            table_data = [d for d in table_data if d['status'] == status_filter]
+        
+        if search:
+            search_lower = search.lower()
+            table_data = [d for d in table_data 
+                         if search_lower in d['orderId'].lower() or 
+                            search_lower in d['company'].lower()]
+        
+        # 排序
+        reverse = sortDirection == 'desc'
+        try:
+            table_data.sort(key=lambda x: x.get(sortField, ''), reverse=reverse)
+        except:
+            pass
+        
+        # 分页
+        total = len(table_data)
+        start = (page - 1) * pageSize
+        end = start + pageSize
+        page_data = table_data[start:end]
+        
+        return jsonify({
+            'success': True,
+            'data': page_data,
+            'total': total,
+            'page': page,
+            'pageSize': pageSize
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'获取表格数据失败: {str(e)}'})
 
 
 if __name__ == '__main__':
