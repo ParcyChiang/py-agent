@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>物流对比分析 - 物流智能分析</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        .comparison-section {
+            margin-top: 20px;
+        }
+        .filter-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+            align-items: end;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .form-group label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        }
+        .form-control {
+            padding: 8px 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            font-size: 14px;
+            width: 200px;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: #1e90ff;
+            box-shadow: 0 0 0 2px rgba(30, 144, 255, 0.2);
+        }
+        .custom-select {
+            position: relative;
+        }
+        .custom-select select {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .custom-select input {
+            display: block;
+        }
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background-color: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+        .dropdown-menu.show {
+            display: block;
+        }
+        .dropdown-item {
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+        .dropdown-item:hover {
+            background-color: #f0f0f0;
+        }
+        #loadComparisonBtn {
+            background-color: #1e90ff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            height: 36px;
+        }
+        #loadComparisonBtn:hover {
+            background-color: #187bcd;
+        }
+        .address-group {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            background-color: #f9f9f9;
+        }
+        .address-group h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .group-info {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
+        .info-item {
+            flex: 1;
+            min-width: 150px;
+        }
+        .info-item strong {
+            display: block;
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .info-item span {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+        .shipments-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        .shipments-table th,
+        .shipments-table td {
+            border: 1px solid #e0e0e0;
+            padding: 8px;
+            text-align: left;
+        }
+        .shipments-table th {
+            background-color: #f0f0f0;
+            font-weight: 600;
+        }
+        .analyze-btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        .analyze-btn:hover {
+            background-color: #45a049;
+        }
+        .analysis-result {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #f0f8ff;
+            border-radius: 4px;
+            border-left: 4px solid #1e90ff;
+        }
+        .analysis-result h4 {
+            margin-top: 0;
+            color: #1e90ff;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0,0,0,.3);
+            border-radius: 50%;
+            border-top-color: #000;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .pagination-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .pagination {
+            display: flex;
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .pagination li {
+            margin: 0 5px;
+        }
+        .pagination a {
+            display: block;
+            padding: 8px 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            text-decoration: none;
+            color: #333;
+            cursor: pointer;
+        }
+        .pagination a:hover {
+            background-color: #f0f0f0;
+        }
+        .pagination .active a {
+            background-color: #1e90ff;
+            color: white;
+            border-color: #1e90ff;
+        }
+        .pagination .disabled a {
+            color: #999;
+            cursor: not-allowed;
+            border-color: #e0e0e0;
+        }
+        .pagination .disabled a:hover {
+            background-color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>物流对比分析</h1>
+            <p>对比同一收件地址或发件地址的物流信息，并获取智能优化方案。</p>
+        </header>
+
+        <nav class="nav">
+            <a href="/">首页</a>
+            <a class="secondary" href="/page/upload">数据导入</a>
+            <a class="secondary" href="/page/analyze">运营分析</a>
+            <a class="secondary" href="/page/shipments">数据列表</a>
+            <a class="secondary" href="/page/report">日报中心</a>
+            <a class="secondary" href="/page/dashboard">实时监控</a>
+            <a class="secondary" href="/page/code_generator">代码生成器</a>
+            <a class="secondary" href="/page/compare">物流对比</a>
+        </nav>
+
+        <div class="comparison-section">
+            <div class="filter-controls">
+                <div class="form-group">
+                    <label for="originFilter">发件地址过滤：</label>
+                    <div class="custom-select">
+                        <select id="originFilter" class="form-control">
+                            <option value="">请选择发件地址</option>
+                        </select>
+                        <input type="text" id="originInput" class="form-control" placeholder="输入发件地址">
+                        <div id="originDropdown" class="dropdown-menu"></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="destinationFilter">收件地址过滤：</label>
+                    <div class="custom-select">
+                        <select id="destinationFilter" class="form-control">
+                            <option value="">请选择收件地址</option>
+                        </select>
+                        <input type="text" id="destinationInput" class="form-control" placeholder="输入收件地址">
+                        <div id="destinationDropdown" class="dropdown-menu"></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="courierFilter">快递公司过滤：</label>
+                    <div class="custom-select">
+                        <select id="courierFilter" class="form-control">
+                            <option value="">请选择快递公司</option>
+                        </select>
+                        <input type="text" id="courierInput" class="form-control" placeholder="输入快递公司">
+                        <div id="courierDropdown" class="dropdown-menu"></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="pageSize">每页数量：</label>
+                    <select id="pageSize" class="form-control">
+                        <option value="10">10</option>
+                        <option value="20" selected>20</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+                <button id="loadComparisonBtn">加载对比数据</button>
+            </div>
+            <div id="comparisonResult">点击“加载对比数据”获取对比结果</div>
+            <div class="pagination-container" id="pagination"></div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(function(){
+            // 全局变量
+            var currentPage = 1;
+            var pageSize = 10;
+            
+            // 加载对比数据
+            function loadComparisonData(page) {
+                var originFilter = $('#originFilter').val();
+                var destinationFilter = $('#destinationFilter').val();
+                
+                $('#comparisonResult').html('加载中...');
+                $.getJSON('/api/shipments/compare', {
+                    origin: originFilter,
+                    destination: destinationFilter,
+                    page: page,
+                    pageSize: pageSize
+                }, function(response) {
+                    if (response.success) {
+                        if (response.data.length > 0) {
+                            var html = '';
+                            response.data.forEach(function(group, index) {
+                                html += '<div class="address-group">';
+                                html += '<h3>' + (group.address_type === 'destination' ? '收件地址' : '发件地址') + ': ' + group.address + '</h3>';
+                                html += '<div class="group-info">';
+                                html += '<div class="info-item"><strong>物流数量</strong><span>' + group.shipment_count + '</span></div>';
+                                html += '<div class="info-item"><strong>平均配送时间</strong><span>' + group.avg_delivery_time.toFixed(2) + ' 小时</span></div>';
+                                html += '<div class="info-item"><strong>平均运费</strong><span>¥' + group.avg_shipping_fee.toFixed(2) + '</span></div>';
+                                html += '</div>';
+                                
+                                // 状态分布
+                                html += '<h4>状态分布</h4>';
+                                html += '<div class="status-distribution">';
+                                for (var status in group.status_distribution) {
+                                    html += '<span>' + status + ': ' + group.status_distribution[status] + '</span> ';
+                                }
+                                html += '</div>';
+                                
+                                // 快递公司分布
+                                html += '<h4>快递公司分布</h4>';
+                                html += '<div class="courier-distribution">';
+                                for (var courier in group.courier_distribution) {
+                                    html += '<span>' + courier + ': ' + group.courier_distribution[courier] + '</span> ';
+                                }
+                                html += '</div>';
+                                
+                                // 物流列表
+                                html += '<h4>物流详情</h4>';
+                                html += '<table class="shipments-table">';
+                                html += '<tr><th>物流单号</th><th>状态</th><th>重量 (kg)</th><th>运费</th><th>创建时间</th><th>实际送达</th></tr>';
+                                group.shipments.forEach(function(shipment) {
+                                    html += '<tr>';
+                                    html += '<td>' + shipment.id + '</td>';
+                                    html += '<td>' + shipment.status + '</td>';
+                                    html += '<td>' + shipment.weight + '</td>';
+                                    html += '<td>¥' + shipment.shipping_fee + '</td>';
+                                    html += '<td>' + shipment.created_at + '</td>';
+                                    html += '<td>' + (shipment.actual_delivery || '-') + '</td>';
+                                    html += '</tr>';
+                                });
+                                html += '</table>';
+                                
+                                // 分析按钮
+                                html += '<button class="analyze-btn" data-index="' + index + '" data-page="' + page + '">智能分析</button>';
+                                html += '<div id="analysis-' + index + '" class="analysis-result" style="display: none;"></div>';
+                                html += '</div>';
+                            });
+                            $('#comparisonResult').html(html);
+                            
+                            // 生成分页控件
+                            generatePagination(response.total, response.page, response.pageSize);
+                        } else {
+                            $('#comparisonResult').html('没有找到符合条件的对比数据，请先上传包含多条相同地址物流信息的CSV文件');
+                            $('#pagination').html('');
+                        }
+                    } else {
+                        $('#comparisonResult').html('加载失败: ' + response.message);
+                        $('#pagination').html('');
+                    }
+                }).fail(function(){
+                    $('#comparisonResult').html('加载失败，请重试');
+                    $('#pagination').html('');
+                });
+            }
+
+            // 生成分页控件
+            function generatePagination(total, currentPage, pageSize) {
+                var totalPages = Math.ceil(total / pageSize);
+                var paginationHtml = '<ul class="pagination">';
+                
+                // 上一页
+                if (currentPage > 1) {
+                    paginationHtml += '<li><a href="#" data-page="' + (currentPage - 1) + '">上一页</a></li>';
+                } else {
+                    paginationHtml += '<li class="disabled"><a href="#">上一页</a></li>';
+                }
+                
+                // 页码
+                var startPage = Math.max(1, currentPage - 2);
+                var endPage = Math.min(totalPages, startPage + 4);
+                
+                if (startPage > 1) {
+                    paginationHtml += '<li><a href="#" data-page="1">1</a></li>';
+                    if (startPage > 2) {
+                        paginationHtml += '<li class="disabled"><a href="#">...</a></li>';
+                    }
+                }
+                
+                for (var i = startPage; i <= endPage; i++) {
+                    if (i === currentPage) {
+                        paginationHtml += '<li class="active"><a href="#" data-page="' + i + '">' + i + '</a></li>';
+                    } else {
+                        paginationHtml += '<li><a href="#" data-page="' + i + '">' + i + '</a></li>';
+                    }
+                }
+                
+                if (endPage < totalPages) {
+                    if (endPage < totalPages - 1) {
+                        paginationHtml += '<li class="disabled"><a href="#">...</a></li>';
+                    }
+                    paginationHtml += '<li><a href="#" data-page="' + totalPages + '">' + totalPages + '</a></li>';
+                }
+                
+                // 下一页
+                if (currentPage < totalPages) {
+                    paginationHtml += '<li><a href="#" data-page="' + (currentPage + 1) + '">下一页</a></li>';
+                } else {
+                    paginationHtml += '<li class="disabled"><a href="#">下一页</a></li>';
+                }
+                
+                paginationHtml += '</ul>';
+                $('#pagination').html(paginationHtml);
+            }
+            
+            // 加载对比数据按钮点击事件
+            $('#loadComparisonBtn').on('click', function() {
+                currentPage = 1;
+                loadComparisonData(currentPage);
+            });
+            
+            // 分页按钮点击事件
+            $(document).on('click', '.pagination a', function(e) {
+                e.preventDefault();
+                var page = $(this).data('page');
+                if (page) {
+                    currentPage = page;
+                    loadComparisonData(currentPage);
+                }
+            });
+            
+            // 分析按钮点击事件
+            $(document).on('click', '.analyze-btn', function() {
+                var index = $(this).data('index');
+                var page = $(this).data('page');
+                var analysisDiv = $('#analysis-' + index);
+                analysisDiv.html('<div class="loading"></div> 分析中...').show();
+                
+                // 获取当前地址组的数据
+                var groupData = [];
+                var originFilter = $('#originFilter').val();
+                var destinationFilter = $('#destinationFilter').val();
+                
+                $.getJSON('/api/shipments/compare', {
+                    origin: originFilter,
+                    destination: destinationFilter,
+                    page: page,
+                    pageSize: pageSize
+                }, function(response) {
+                    if (response.success && response.data.length > index) {
+                        groupData.push(response.data[index]);
+                        
+                        // 调用分析API
+                        $.ajax({
+                            url: '/api/shipments/analyze-comparison',
+                            type: 'POST',
+                            contentType: 'application/json',
+                            data: JSON.stringify({ comparison_data: groupData }),
+                            success: function(analysisResponse) {
+                                if (analysisResponse.success) {
+                                    analysisDiv.html('<h4>智能分析结果</h4><pre>' + analysisResponse.analysis + '</pre>');
+                                } else {
+                                    analysisDiv.html('<h4>分析失败</h4><p>' + analysisResponse.message + '</p>');
+                                }
+                            },
+                            error: function() {
+                                analysisDiv.html('<h4>分析失败</h4><p>请稍后重试</p>');
+                            }
+                        });
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
