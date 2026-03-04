@@ -56,6 +56,10 @@ def page_code_generator():
 def page_new_dashboard():
     return render_template('new_dashboard.html')
 
+@app.route('/page/compare')
+def page_compare():
+    return render_template('compare.html')
+
 # @app.route('/page/admin_log')
 # def page_code_generator():
 #     return render_template('admin_log.html')
@@ -931,6 +935,172 @@ def get_dashboard_table():
         
     except Exception as e:
         return jsonify({'success': False, 'message': f'获取表格数据失败: {str(e)}'})
+
+
+@app.route('/api/shipments/compare', methods=['GET'])
+def compare_shipments():
+    """对比同一收件地址或发件地址的物流信息"""
+    try:
+        # 获取查询参数
+        origin_filter = request.args.get('origin', '')
+        destination_filter = request.args.get('destination', '')
+        courier_filter = request.args.get('courier', '')
+        page = request.args.get('page', 1, type=int)
+        pageSize = request.args.get('pageSize', 20, type=int)
+        
+        # 获取所有物流数据
+        shipments = data_manager.get_all_shipments(limit=10000)
+        
+        if not shipments:
+            return jsonify({'success': False, 'message': '没有可用的数据'})
+        
+        # 应用过滤器
+        filtered_shipments = []
+        for shipment in shipments:
+            origin = shipment.get('origin', '')
+            destination = shipment.get('destination', '')
+            courier = shipment.get('courier_company', '')
+            
+            # 应用发件地址过滤
+            if origin_filter and origin_filter not in origin:
+                continue
+            
+            # 应用收件地址过滤
+            if destination_filter and destination_filter not in destination:
+                continue
+            
+            # 应用快递公司过滤
+            if courier_filter and courier_filter not in courier:
+                continue
+            
+            filtered_shipments.append(shipment)
+        
+        # 按收件地址和发件地址分组
+        address_groups = {}
+        
+        for shipment in filtered_shipments:
+            # 按收件地址分组
+            destination = shipment.get('destination', '')
+            if destination:
+                if destination not in address_groups:
+                    address_groups[destination] = {'type': 'destination', 'shipments': []}
+                address_groups[destination]['shipments'].append(shipment)
+            
+            # 按发件地址分组
+            origin = shipment.get('origin', '')
+            if origin:
+                if origin not in address_groups:
+                    address_groups[origin] = {'type': 'origin', 'shipments': []}
+                address_groups[origin]['shipments'].append(shipment)
+        
+        # 过滤出有两条以上记录的地址
+        valid_groups = {}
+        for address, group in address_groups.items():
+            if len(group['shipments']) >= 2:
+                valid_groups[address] = group
+        
+        # 对每个地址组进行分析
+        comparison_results = []
+        for address, group in valid_groups.items():
+            shipments = group['shipments']
+            
+            # 计算平均配送时间
+            delivery_times = []
+            for shipment in shipments:
+                if shipment.get('actual_delivery') and shipment.get('created_at'):
+                    try:
+                        created = datetime.fromisoformat(str(shipment['created_at']).replace('Z', '+00:00'))
+                        delivered = datetime.fromisoformat(str(shipment['actual_delivery']).replace('Z', '+00:00'))
+                        hours = (delivered - created).total_seconds() / 3600
+                        delivery_times.append(hours)
+                    except:
+                        pass
+            
+            avg_delivery_time = sum(delivery_times) / len(delivery_times) if delivery_times else 0
+            
+            # 统计状态分布
+            status_counts = {}
+            for shipment in shipments:
+                status = shipment.get('status', 'unknown')
+                status_counts[status] = status_counts.get(status, 0) + 1
+            
+            # 统计快递公司分布
+            courier_counts = {}
+            for shipment in shipments:
+                courier = shipment.get('courier_company', 'unknown')
+                courier_counts[courier] = courier_counts.get(courier, 0) + 1
+            
+            # 计算平均运费
+            total_fee = sum(shipment.get('shipping_fee', 0) for shipment in shipments)
+            avg_fee = total_fee / len(shipments) if shipments else 0
+            
+            comparison_results.append({
+                'address': address,
+                'address_type': group['type'],
+                'shipment_count': len(shipments),
+                'avg_delivery_time': avg_delivery_time,
+                'status_distribution': status_counts,
+                'courier_distribution': courier_counts,
+                'avg_shipping_fee': avg_fee,
+                'shipments': shipments
+            })
+        
+        # 按物流数量排序
+        comparison_results.sort(key=lambda x: x['shipment_count'], reverse=True)
+        
+        # 分页处理
+        total = len(comparison_results)
+        start = (page - 1) * pageSize
+        end = start + pageSize
+        page_data = comparison_results[start:end]
+        
+        return jsonify({
+            'success': True,
+            'data': page_data,
+            'total': total,
+            'page': page,
+            'pageSize': pageSize
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'对比分析失败: {str(e)}'})
+
+
+@app.route('/api/shipments/analyze-comparison', methods=['POST'])
+async def analyze_comparison():
+    """使用LLM分析物流对比数据并给出优化方案"""
+    try:
+        data = request.get_json()
+        comparison_data = data.get('comparison_data', [])
+        
+        if not comparison_data:
+            return jsonify({'success': False, 'message': '没有提供对比数据'})
+        
+        # 构建分析提示词
+        prompt = f"""
+        你是一个物流运营专家，需要对以下物流对比数据进行分析并给出优化方案：
+        
+        {comparison_data}
+        
+        请按照以下结构输出分析结果：
+        1. 数据概览：总结对比情况，包括涉及的地址数量、物流总量等
+        2. 关键发现：识别出的问题和异常情况
+        3. 优化方案：针对发现的问题给出具体的优化建议
+        4. 实施优先级：对优化方案进行优先级排序
+        
+        分析要具体、可操作，基于实际物流运营场景。
+        """
+        
+        # 使用AI生成分析
+        analysis = await model_handler.generate_response(prompt)
+        
+        return jsonify({
+            'success': True,
+            'analysis': analysis
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'分析失败: {str(e)}'})
 
 
 if __name__ == '__main__':
