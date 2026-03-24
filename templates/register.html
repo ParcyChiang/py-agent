@@ -9,38 +9,36 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
         body {
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #0a0a1a;
             font-family: 'Inter', sans-serif;
         }
-        .register-container {
-            background: rgba(255, 255, 255, 0.95);
+        .auth-container {
+            background: rgba(20, 25, 45, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(100, 130, 200, 0.3);
+            border-radius: 16px;
             padding: 3rem;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             width: 100%;
             max-width: 400px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
         }
-        .register-header {
+        .auth-header {
             text-align: center;
             margin-bottom: 2rem;
         }
-        .register-header h1 {
+        .auth-header h1 {
             font-size: 1.8rem;
-            color: #333;
+            color: white;
             margin-bottom: 0.5rem;
         }
-        .register-header p {
-            color: #666;
+        .auth-header p {
+            color: rgba(255, 255, 255, 0.7);
             font-size: 0.9rem;
         }
         .form-group {
@@ -49,72 +47,81 @@
         .form-group label {
             display: block;
             margin-bottom: 0.5rem;
-            color: #333;
+            color: rgba(255, 255, 255, 0.9);
             font-weight: 600;
             font-size: 0.9rem;
         }
         .form-group input {
             width: 100%;
             padding: 0.8rem 1rem;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(100, 140, 220, 0.4);
+            border-radius: 8px;
             font-size: 1rem;
-            transition: border-color 0.3s;
+            color: white;
+            transition: all 0.3s ease;
             font-family: inherit;
+        }
+        .form-group input::placeholder {
+            color: rgba(255, 255, 255, 0.4);
         }
         .form-group input:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: rgba(14, 165, 233, 0.6);
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
         }
         .error-message {
-            background: #fee;
-            color: #c33;
+            background: rgba(239, 68, 68, 0.2);
+            color: #ff6b6b;
             padding: 0.8rem;
             border-radius: 8px;
             margin-bottom: 1rem;
             font-size: 0.9rem;
             text-align: center;
+            border: 1px solid rgba(239, 68, 68, 0.3);
         }
-        .btn-register {
+        .btn-auth {
             width: 100%;
             padding: 1rem;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, rgba(30, 120, 200, 0.8), rgba(40, 140, 100, 0.8));
             color: white;
-            border: none;
-            border-radius: 10px;
+            border: 1px solid rgba(100, 180, 255, 0.5);
+            border-radius: 8px;
             font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: all 0.3s ease;
         }
-        .btn-register:hover {
+        .btn-auth:hover {
+            background: linear-gradient(135deg, rgba(40, 140, 220, 0.9), rgba(50, 160, 120, 0.9));
             transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 5px 20px rgba(14, 165, 233, 0.3);
         }
-        .btn-register:active {
+        .btn-auth:active {
             transform: translateY(0);
         }
-        .login-hint {
+        .auth-hint {
             margin-top: 1.5rem;
             padding-top: 1.5rem;
-            border-top: 1px solid #e0e0e0;
+            border-top: 1px solid rgba(100, 130, 200, 0.2);
             text-align: center;
             font-size: 0.85rem;
-            color: #666;
+            color: rgba(255, 255, 255, 0.6);
         }
-        .login-hint a {
-            color: #667eea;
+        .auth-hint a {
+            color: #0ea5e9;
             text-decoration: none;
             font-weight: 600;
         }
-        .login-hint a:hover {
+        .auth-hint a:hover {
             text-decoration: underline;
         }
     </style>
 </head>
 <body>
-    <div class="register-container">
-        <div class="register-header">
+    <div class="auth-container">
+        <div class="auth-header">
             <h1>用户注册</h1>
             <p>创建新账号开始使用系统</p>
         </div>
@@ -136,10 +143,10 @@
                 <label for="confirm_password">确认密码</label>
                 <input type="password" id="confirm_password" name="confirm_password" placeholder="请再次输入密码" required autocomplete="new-password">
             </div>
-            <button type="submit" class="btn-register">注 册</button>
+            <button type="submit" class="btn-auth">注 册</button>
         </form>
 
-        <div class="login-hint">
+        <div class="auth-hint">
             已有账号？<a href="/login">立即登录</a>
         </div>
     </div>
