@@ -58,6 +58,34 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    """注册页面"""
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
+
+        if not username or not password:
+            return render_template('register.html', error='请输入用户名和密码')
+
+        if len(username) < 3:
+            return render_template('register.html', error='用户名至少3个字符')
+
+        if len(password) < 6:
+            return render_template('register.html', error='密码至少6个字符')
+
+        if password != confirm_password:
+            return render_template('register.html', error='两次密码输入不一致')
+
+        success, message = data_manager.create_user(username, password)
+        if success:
+            return redirect(url_for('login'))
+        else:
+            return render_template('register.html', error=message)
+
+    return render_template('register.html')
+
 @app.route('/api/login', methods=['POST'])
 def api_login():
     """API登录接口"""

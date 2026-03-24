@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>登录 - 物流智能分析系统</title>
+    <title>注册 - 物流智能分析系统</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,7 +22,7 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             font-family: 'Inter', sans-serif;
         }
-        .login-container {
+        .register-container {
             background: rgba(255, 255, 255, 0.95);
             padding: 3rem;
             border-radius: 20px;
@@ -30,16 +30,16 @@
             width: 100%;
             max-width: 400px;
         }
-        .login-header {
+        .register-header {
             text-align: center;
             margin-bottom: 2rem;
         }
-        .login-header h1 {
+        .register-header h1 {
             font-size: 1.8rem;
             color: #333;
             margin-bottom: 0.5rem;
         }
-        .login-header p {
+        .register-header p {
             color: #666;
             font-size: 0.9rem;
         }
@@ -75,7 +75,7 @@
             font-size: 0.9rem;
             text-align: center;
         }
-        .btn-login {
+        .btn-register {
             width: 100%;
             padding: 1rem;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -87,14 +87,14 @@
             cursor: pointer;
             transition: transform 0.2s, box-shadow 0.2s;
         }
-        .btn-login:hover {
+        .btn-register:hover {
             transform: translateY(-2px);
             box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
         }
-        .btn-login:active {
+        .btn-register:active {
             transform: translateY(0);
         }
-        .admin-hint {
+        .login-hint {
             margin-top: 1.5rem;
             padding-top: 1.5rem;
             border-top: 1px solid #e0e0e0;
@@ -102,56 +102,45 @@
             font-size: 0.85rem;
             color: #666;
         }
-        .admin-hint code {
-            background: #f5f5f5;
-            padding: 0.2rem 0.5rem;
-            border-radius: 4px;
-            font-family: monospace;
-        }
-        .register-hint {
-            margin-top: 1rem;
-            text-align: center;
-            font-size: 0.85rem;
-            color: #666;
-        }
-        .register-hint a {
+        .login-hint a {
             color: #667eea;
             text-decoration: none;
             font-weight: 600;
         }
-        .register-hint a:hover {
+        .login-hint a:hover {
             text-decoration: underline;
         }
     </style>
 </head>
 <body>
-    <div class="login-container">
-        <div class="login-header">
-            <h1>物流智能分析系统</h1>
-            <p>请登录以继续</p>
+    <div class="register-container">
+        <div class="register-header">
+            <h1>用户注册</h1>
+            <p>创建新账号开始使用系统</p>
         </div>
 
         {% if error %}
         <div class="error-message">{{ error }}</div>
         {% endif %}
 
-        <form method="POST" action="/login">
+        <form method="POST" action="/register">
             <div class="form-group">
                 <label for="username">用户名</label>
-                <input type="text" id="username" name="username" placeholder="请输入用户名" required autocomplete="username">
+                <input type="text" id="username" name="username" placeholder="请输入用户名（至少3个字符）" required autocomplete="username">
             </div>
             <div class="form-group">
                 <label for="password">密码</label>
-                <input type="password" id="password" name="password" placeholder="请输入密码" required autocomplete="current-password">
+                <input type="password" id="password" name="password" placeholder="请输入密码（至少6个字符）" required autocomplete="new-password">
             </div>
-            <button type="submit" class="btn-login">登 录</button>
+            <div class="form-group">
+                <label for="confirm_password">确认密码</label>
+                <input type="password" id="confirm_password" name="confirm_password" placeholder="请再次输入密码" required autocomplete="new-password">
+            </div>
+            <button type="submit" class="btn-register">注 册</button>
         </form>
 
-        <div class="admin-hint">
-            管理员账号: <code>admin</code> / <code>admin123</code>
-        </div>
-        <div class="register-hint">
-            没有账号？<a href="/register">立即注册</a>
+        <div class="login-hint">
+            已有账号？<a href="/login">立即登录</a>
         </div>
     </div>
 </body>
