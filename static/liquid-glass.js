@@ -281,6 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
         height: 100%;
         z-index: -1;
         overflow: hidden;
+        background: #0a0a1a;
     `;
     document.body.insertBefore(bgContainer, document.body.firstChild);
 
