@@ -91,6 +91,53 @@ header p {
     border: 1px solid rgba(80, 110, 180, 0.25);
 }
 
+.nav-links {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+/* 用户信息头部 - 右上角固定 */
+.user-header {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    z-index: 1000;
+    padding: 10px 16px;
+    background: rgba(15, 20, 40, 0.85);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border-radius: var(--border-radius-md);
+    border: 1px solid rgba(80, 110, 180, 0.3);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.user-header .user-info {
+    color: rgba(255, 255, 255, 0.95);
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.user-header .btn-logout {
+    padding: 8px 16px;
+    background: rgba(200, 60, 60, 0.8);
+    color: white;
+    border-radius: var(--border-radius-sm);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    border: 1px solid rgba(255, 100, 100, 0.4);
+    transition: all 0.3s ease;
+}
+
+.user-header .btn-logout:hover {
+    background: rgba(220, 70, 70, 0.9);
+    transform: translateY(-1px);
+}
+
 .nav a {
     position: relative;
     padding: 10px 14px;

@@ -11,6 +11,13 @@
 </head>
 <body>
     <script src="{{ url_for('static', filename='liquid-glass.js') }}"></script>
+    <div class="user-header">
+        <span class="user-info">
+            <span id="currentUser"></span>
+        </span>
+        <a class="btn-logout" href="/logout">退出</a>
+    </div>
+
     <div class="container">
         <header>
             <h1>快递物流智能分析系统</h1>
@@ -18,20 +25,18 @@
         </header>
 
         <nav class="nav">
-            <a href="/">首页</a>
-            <a class="secondary" href="/page/upload">数据导入</a>
-            <a class="secondary" href="/page/analyze">运营分析</a>
-            <a class="secondary" href="/page/shipments">数据列表</a>
-            <a class="secondary" href="/page/report">日报中心</a>
-            <a class="secondary" href="/page/dashboard">实时监控</a>
-            <a class="secondary" href="/page/code_generator">代码生成器</a>
-<a class="secondary" href="/page/compare">物流对比</a>
-            <a class="secondary" href="/page/admin_log">日志中心</a>
-            <a class="secondary" href="/page/new_dashboard">用户管理</a>
-            <span class="user-info">
-                <span id="currentUser"></span>
-            </span>
-            <a class="secondary" href="/logout">退出</a>
+            <div class="nav-links">
+                <a href="/">首页</a>
+                <a class="secondary" href="/page/upload">数据导入</a>
+                <a class="secondary" href="/page/analyze">运营分析</a>
+                <a class="secondary" href="/page/shipments">数据列表</a>
+                <a class="secondary" href="/page/report">日报中心</a>
+                <a class="secondary" href="/page/dashboard">实时监控</a>
+                <a class="secondary" href="/page/code_generator">代码生成器</a>
+                <a class="secondary" href="/page/compare">物流对比</a>
+                <a class="secondary" href="/page/admin_log">日志中心</a>
+                <a class="secondary" href="/page/new_dashboard">用户管理</a>
+            </div>
         </nav>
 
         <section class="hero">
@@ -62,17 +67,6 @@
             </div>
         </section>
     </div>
-    <script>
-        // 获取当前登录用户
-        fetch('/api/current_user')
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    const roleText = data.user.role === 'admin' ? '管理员' : '用户';
-                    document.getElementById('currentUser').textContent = `${data.user.username} (${roleText})`;
-                }
-            })
-            .catch(() => {});
-    </script>
+    <script src="{{ url_for('static', filename='user_header.js') }}"></script>
 </body>
 </html>
