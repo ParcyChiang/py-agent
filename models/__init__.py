@@ -1,12 +1,13 @@
 # models/__init__.py
 import json
 import os
+import hashlib
 
 import pymysql
 import ollama
 import pandas as pd
 import logging
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime
 
 logger = logging.getLogger("LogisticsAgent")
@@ -117,8 +118,116 @@ class LogisticsDataManager:
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
                     """
                 )
+
+                # 用户表
+                cursor.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS users (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        username VARCHAR(64) UNIQUE NOT NULL,
+                        password VARCHAR(256) NOT NULL,
+                        role VARCHAR(32) DEFAULT 'user',
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                    """
+                )
             conn.commit()
+
+            # 初始化管理员账号
+            self._init_admin_user()
         finally:
+            conn.close()
+
+    def _init_admin_user(self):
+        """初始化管理员账号"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            # 检查是否已存在管理员
+            cursor.execute("SELECT id FROM users WHERE role = 'admin' LIMIT 1")
+            if cursor.fetchone() is None:
+                # 创建默认管理员账号: admin / admin123
+                admin_password = self._hash_password("admin123")
+                cursor.execute(
+                    "INSERT INTO users (username, password, role) VALUES (%s, %s, %s)",
+                    ("admin", admin_password, "admin")
+                )
+                conn.commit()
+                logger.info("已创建默认管理员账号: admin / admin123")
+        finally:
+            cursor.close()
+            conn.close()
+
+    def _hash_password(self, password: str) -> str:
+        """密码哈希"""
+        return hashlib.sha256(password.encode()).hexdigest()
+
+    def verify_user(self, username: str, password: str) -> Tuple[bool, Optional[Dict]]:
+        """验证用户登录，返回 (成功标志, 用户信息)"""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT id, username, role FROM users WHERE username = %s AND password = %s",
+                    (username, self._hash_password(password))
+                )
+                user = cursor.fetchone()
+                if user:
+                    return True, user
+                return False, None
+        finally:
+            conn.close()
+
+    def create_user(self, username: str, password: str, role: str = "user") -> Tuple[bool, str]:
+        """创建新用户"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            # 检查用户名是否已存在
+            cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
+            if cursor.fetchone():
+                return False, "用户名已存在"
+
+            # 创建用户
+            hashed_password = self._hash_password(password)
+            cursor.execute(
+                "INSERT INTO users (username, password, role) VALUES (%s, %s, %s)",
+                (username, hashed_password, role)
+            )
+            conn.commit()
+            return True, "用户创建成功"
+        except Exception as e:
+            conn.rollback()
+            return False, f"创建用户失败: {str(e)}"
+        finally:
+            cursor.close()
+            conn.close()
+
+    def get_all_users(self) -> List[Dict]:
+        """获取所有用户（不含密码）"""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT id, username, role, created_at FROM users ORDER BY created_at DESC")
+                return cursor.fetchall()
+        finally:
+            conn.close()
+
+    def delete_user(self, user_id: int) -> Tuple[bool, str]:
+        """删除用户"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("DELETE FROM users WHERE id = %s AND role != 'admin'", (user_id,))
+            if cursor.rowcount == 0:
+                return False, "无法删除管理员账号"
+            conn.commit()
+            return True, "用户已删除"
+        except Exception as e:
+            conn.rollback()
+            return False, f"删除失败: {str(e)}"
+        finally:
+            cursor.close()
             conn.close()
 
     def import_from_csv(self, file_path: str) -> Dict[str, Any]:

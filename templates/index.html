@@ -24,8 +24,10 @@
             <a class="secondary" href="/page/report">日报中心</a>
             <a class="secondary" href="/page/dashboard">实时监控</a>
             <a class="secondary" href="/page/code_generator">代码生成器</a>
-            <a class="secondary" href="/page/admin_log">日志中心</a>
-            <a class="secondary" href="/page/new_dashboard">用户管理</a>
+            <span class="user-info">
+                <span id="currentUser"></span>
+            </span>
+            <a class="secondary" href="/logout">退出</a>
         </nav>
 
         <section class="hero">
@@ -56,5 +58,17 @@
             </div>
         </section>
     </div>
+    <script>
+        // 获取当前登录用户
+        fetch('/api/current_user')
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    const roleText = data.user.role === 'admin' ? '管理员' : '用户';
+                    document.getElementById('currentUser').textContent = `${data.user.username} (${roleText})`;
+                }
+            })
+            .catch(() => {});
+    </script>
 </body>
 </html>

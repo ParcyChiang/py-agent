@@ -7,7 +7,7 @@ import sys
 import io
 import contextlib
 import traceback
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session
 
 # 直接从models模块导入创建函数和类
 from models import create_data_manager, create_model_handler
@@ -16,6 +16,7 @@ from collections import Counter, defaultdict
 from datetime import datetime, date, timedelta
 
 app = Flask(__name__)
+app.secret_key = os.getenv('SECRET_KEY', 'your-secret-key-change-in-production')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB限制
 
 # 使用工厂函数创建实例
@@ -26,7 +27,75 @@ model_handler = create_model_handler()
 @app.route('/')
 def index():
     """主页面"""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
     return render_template('index.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """登录页面"""
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+
+        if not username or not password:
+            return render_template('login.html', error='请输入用户名和密码')
+
+        success, user = data_manager.verify_user(username, password)
+        if success:
+            session['user_id'] = user['id']
+            session['username'] = user['username']
+            session['role'] = user['role']
+            return redirect(url_for('index'))
+        else:
+            return render_template('login.html', error='用户名或密码错误')
+
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    """登出"""
+    session.clear()
+    return redirect(url_for('login'))
+
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    """API登录接口"""
+    data = request.get_json()
+    username = data.get('username', '').strip()
+    password = data.get('password', '')
+
+    if not username or not password:
+        return jsonify({'success': False, 'message': '请输入用户名和密码'})
+
+    success, user = data_manager.verify_user(username, password)
+    if success:
+        session['user_id'] = user['id']
+        session['username'] = user['username']
+        session['role'] = user['role']
+        return jsonify({'success': True, 'message': '登录成功', 'username': user['username'], 'role': user['role']})
+    else:
+        return jsonify({'success': False, 'message': '用户名或密码错误'})
+
+@app.route('/api/logout', methods=['POST'])
+def api_logout():
+    """API登出接口"""
+    session.clear()
+    return jsonify({'success': True, 'message': '已登出'})
+
+@app.route('/api/current_user')
+def api_current_user():
+    """获取当前登录用户"""
+    if 'user_id' in session:
+        return jsonify({
+            'success': True,
+            'user': {
+                'id': session['user_id'],
+                'username': session['username'],
+                'role': session['role']
+            }
+        })
+    return jsonify({'success': False, 'message': '未登录'})
 
 @app.route('/page/upload')
 def page_upload():
