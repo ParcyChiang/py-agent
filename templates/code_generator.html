@@ -85,10 +85,33 @@
         </main>
     </div>
 
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="{{ url_for('static', filename='cache.js') }}"></script>
     <script>
         function setQuestion(question) {
             document.getElementById('questionInput').value = question;
         }
+
+        // 页面加载时恢复缓存数据
+        $(function(){
+            const savedCode = cacheGet('generated_code');
+            if (savedCode) {
+                document.getElementById('questionInput').value = savedCode.question || '';
+                document.getElementById('generatedCode').textContent = savedCode.code || '';
+                if (savedCode.code) {
+                    document.getElementById('codeContainer').style.display = 'block';
+                    document.getElementById('executeBtn').disabled = false;
+                }
+            }
+
+            const savedOutput = cacheGet('code_output');
+            if (savedOutput) {
+                const outputDiv = document.getElementById('executionOutput');
+                outputDiv.textContent = savedOutput;
+                outputDiv.className = 'output-container';
+                document.getElementById('outputContainer').style.display = 'block';
+            }
+        });
 
         async function generateCode() {
             const question = document.getElementById('questionInput').value.trim();
@@ -114,11 +137,13 @@
                 });
 
                 const result = await response.json();
-                
+
                 if (result.success) {
                     document.getElementById('generatedCode').textContent = result.code;
                     codeContainer.style.display = 'block';
                     executeBtn.disabled = false;
+                    // 缓存代码
+                    cacheSet('generated_code', { question: question, code: result.code });
                 } else {
                     alert('生成代码失败：' + result.message);
                 }
@@ -153,18 +178,20 @@
                 });
 
                 const result = await response.json();
-                
+
                 const outputDiv = document.getElementById('executionOutput');
                 outputDiv.className = 'output-container';
-                
+
                 if (result.success) {
                     outputDiv.classList.add('success-output');
                     outputDiv.textContent = result.output || '代码执行成功，无输出内容';
+                    cacheSet('code_output', result.output || '代码执行成功，无输出内容');
                 } else {
                     outputDiv.classList.add('error-output');
                     outputDiv.textContent = result.error || '代码执行失败';
+                    cacheSet('code_output', result.error || '代码执行失败');
                 }
-                
+
                 outputContainer.style.display = 'block';
             } catch (error) {
                 const outputDiv = document.getElementById('executionOutput');
@@ -186,6 +213,8 @@
             document.getElementById('codeContainer').style.display = 'none';
             document.getElementById('outputContainer').style.display = 'none';
             document.getElementById('executeBtn').disabled = true;
+            cacheRemove('generated_code');
+            cacheRemove('code_output');
         }
     </script>
 </body>

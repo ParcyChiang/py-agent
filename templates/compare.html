@@ -279,17 +279,27 @@
     </div>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="{{ url_for('static', filename='cache.js') }}"></script>
     <script>
         $(function(){
             // 全局变量
             var currentPage = 1;
             var pageSize = 10;
-            
+
+            // 页面加载时从缓存恢复数据
+            var savedComparison = cacheGet('comparison_data');
+            if (savedComparison) {
+                currentPage = savedComparison.currentPage || 1;
+                pageSize = savedComparison.pageSize || 20;
+                $('#comparisonResult').html(savedComparison.html);
+                generatePagination(savedComparison.total, savedComparison.page, savedComparison.pageSize);
+            }
+
             // 加载对比数据
             function loadComparisonData(page) {
                 var originFilter = $('#originFilter').val();
                 var destinationFilter = $('#destinationFilter').val();
-                
+
                 $('#comparisonResult').html('加载中...');
                 $.getJSON('/api/shipments/compare', {
                     origin: originFilter,
@@ -308,7 +318,7 @@
                                 html += '<div class="info-item"><strong>平均配送时间</strong><span>' + group.avg_delivery_time.toFixed(2) + ' 小时</span></div>';
                                 html += '<div class="info-item"><strong>平均运费</strong><span>¥' + group.avg_shipping_fee.toFixed(2) + '</span></div>';
                                 html += '</div>';
-                                
+
                                 // 状态分布
                                 html += '<h4>状态分布</h4>';
                                 html += '<div class="status-distribution">';
@@ -316,7 +326,7 @@
                                     html += '<span>' + status + ': ' + group.status_distribution[status] + '</span> ';
                                 }
                                 html += '</div>';
-                                
+
                                 // 快递公司分布
                                 html += '<h4>快递公司分布</h4>';
                                 html += '<div class="courier-distribution">';
@@ -324,7 +334,7 @@
                                     html += '<span>' + courier + ': ' + group.courier_distribution[courier] + '</span> ';
                                 }
                                 html += '</div>';
-                                
+
                                 // 物流列表
                                 html += '<h4>物流详情</h4>';
                                 html += '<table class="shipments-table">';
@@ -340,14 +350,23 @@
                                     html += '</tr>';
                                 });
                                 html += '</table>';
-                                
+
                                 // 分析按钮
                                 html += '<button class="analyze-btn" data-index="' + index + '" data-page="' + page + '">智能分析</button>';
                                 html += '<div id="analysis-' + index + '" class="analysis-result" style="display: none;"></div>';
                                 html += '</div>';
                             });
                             $('#comparisonResult').html(html);
-                            
+
+                            // 缓存结果
+                            cacheSet('comparison_data', {
+                                html: html,
+                                currentPage: page,
+                                pageSize: pageSize,
+                                total: response.total,
+                                page: response.page
+                            });
+
                             // 生成分页控件
                             generatePagination(response.total, response.page, response.pageSize);
                         } else {
@@ -368,25 +387,25 @@
             function generatePagination(total, currentPage, pageSize) {
                 var totalPages = Math.ceil(total / pageSize);
                 var paginationHtml = '<ul class="pagination">';
-                
+
                 // 上一页
                 if (currentPage > 1) {
                     paginationHtml += '<li><a href="#" data-page="' + (currentPage - 1) + '">上一页</a></li>';
                 } else {
                     paginationHtml += '<li class="disabled"><a href="#">上一页</a></li>';
                 }
-                
+
                 // 页码
                 var startPage = Math.max(1, currentPage - 2);
                 var endPage = Math.min(totalPages, startPage + 4);
-                
+
                 if (startPage > 1) {
                     paginationHtml += '<li><a href="#" data-page="1">1</a></li>';
                     if (startPage > 2) {
                         paginationHtml += '<li class="disabled"><a href="#">...</a></li>';
                     }
                 }
-                
+
                 for (var i = startPage; i <= endPage; i++) {
                     if (i === currentPage) {
                         paginationHtml += '<li class="active"><a href="#" data-page="' + i + '">' + i + '</a></li>';
@@ -394,31 +413,31 @@
                         paginationHtml += '<li><a href="#" data-page="' + i + '">' + i + '</a></li>';
                     }
                 }
-                
+
                 if (endPage < totalPages) {
                     if (endPage < totalPages - 1) {
                         paginationHtml += '<li class="disabled"><a href="#">...</a></li>';
                     }
                     paginationHtml += '<li><a href="#" data-page="' + totalPages + '">' + totalPages + '</a></li>';
                 }
-                
+
                 // 下一页
                 if (currentPage < totalPages) {
                     paginationHtml += '<li><a href="#" data-page="' + (currentPage + 1) + '">下一页</a></li>';
                 } else {
                     paginationHtml += '<li class="disabled"><a href="#">下一页</a></li>';
                 }
-                
+
                 paginationHtml += '</ul>';
                 $('#pagination').html(paginationHtml);
             }
-            
+
             // 加载对比数据按钮点击事件
             $('#loadComparisonBtn').on('click', function() {
                 currentPage = 1;
                 loadComparisonData(currentPage);
             });
-            
+
             // 分页按钮点击事件
             $(document).on('click', '.pagination a', function(e) {
                 e.preventDefault();
@@ -428,19 +447,19 @@
                     loadComparisonData(currentPage);
                 }
             });
-            
+
             // 分析按钮点击事件
             $(document).on('click', '.analyze-btn', function() {
                 var index = $(this).data('index');
                 var page = $(this).data('page');
                 var analysisDiv = $('#analysis-' + index);
                 analysisDiv.html('<div class="loading"></div> 分析中...').show();
-                
+
                 // 获取当前地址组的数据
                 var groupData = [];
                 var originFilter = $('#originFilter').val();
                 var destinationFilter = $('#destinationFilter').val();
-                
+
                 $.getJSON('/api/shipments/compare', {
                     origin: originFilter,
                     destination: destinationFilter,
@@ -449,7 +468,7 @@
                 }, function(response) {
                     if (response.success && response.data.length > index) {
                         groupData.push(response.data[index]);
-                        
+
                         // 调用分析API
                         $.ajax({
                             url: '/api/shipments/analyze-comparison',
@@ -459,6 +478,8 @@
                             success: function(analysisResponse) {
                                 if (analysisResponse.success) {
                                     analysisDiv.html('<h4>智能分析结果</h4><pre>' + analysisResponse.analysis + '</pre>');
+                                    // 缓存分析结果
+                                    cacheSet('comparison_analysis_' + index + '_' + page, analysisResponse.analysis);
                                 } else {
                                     analysisDiv.html('<h4>分析失败</h4><p>' + analysisResponse.message + '</p>');
                                 }
