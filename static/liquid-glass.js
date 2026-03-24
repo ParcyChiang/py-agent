@@ -7,6 +7,7 @@ class LiquidGlass {
     constructor(container) {
         this.container = container;
         this.canvas = document.createElement('canvas');
+        this.canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;background:#0a0a1a;';
         this.ctx = this.canvas.getContext('webgl') || this.canvas.getContext('experimental-webgl');
         this.container.appendChild(this.canvas);
 
@@ -269,35 +270,32 @@ class LiquidGlass {
 }
 
 // Auto-initialize liquid glass backgrounds
-document.addEventListener('DOMContentLoaded', () => {
+(function initLiquidGlass() {
+    // Only initialize once
+    if (window.liquidGlassInitialized) return;
+    window.liquidGlassInitialized = true;
+
     // Create liquid glass background for body
-    const bgContainer = document.createElement('div');
-    bgContainer.id = 'liquid-glass-bg';
-    bgContainer.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: -1;
-        overflow: hidden;
-        background: #0a0a1a;
-    `;
-    document.body.insertBefore(bgContainer, document.body.firstChild);
+    const existingBg = document.getElementById('liquid-glass-bg');
+    if (!existingBg) {
+        const bgContainer = document.createElement('div');
+        bgContainer.id = 'liquid-glass-bg';
+        bgContainer.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+            background: #0a0a1a;
+        `;
+        document.body.insertBefore(bgContainer, document.body.firstChild);
 
-    // Initialize liquid glass effect
-    new LiquidGlass(bgContainer);
-
-    // Add glass-morphism to existing cards
-    document.querySelectorAll('.card, .stats-card, .report-card, .chart-card, .metric-card, .code-container').forEach(el => {
-        el.classList.add('glass-effect');
-    });
-
-    // Add glass buttons to nav links
-    document.querySelectorAll('.nav a, .btn').forEach(el => {
-        el.classList.add('glass-button');
-    });
-});
+        // Initialize liquid glass effect
+        new LiquidGlass(bgContainer);
+    }
+})();
 
 // Export for manual initialization
 window.LiquidGlass = LiquidGlass;
