@@ -3,10 +3,13 @@ import json
 import os
 import hashlib
 
+from dotenv import load_dotenv
+load_dotenv()
+
 import pymysql
-import ollama
 import pandas as pd
 import logging
+import requests
 from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime
 
@@ -29,8 +32,12 @@ def create_data_manager():
     )
 
 
-def create_model_handler(model_name: str = "qwen:0.5b"):
-    return OllamaModelHandler(model_name)
+def create_model_handler(model_name: str = "MiniMax-M2.7-highspeed"):
+    """创建模型处理器，默认使用MiniMax API"""
+    api_key = os.getenv("MINIMAX_API_KEY")
+    if api_key:
+        return MiniMaxModelHandler(model_name, api_key)
+    raise ValueError("未配置MINIMAX_API_KEY")
 
 
 class LogisticsDataManager:
@@ -622,25 +629,63 @@ class LogisticsDataManager:
         }
 
 
-class OllamaModelHandler:
-    """Ollama模型处理器"""
+class MiniMaxModelHandler:
+    """MiniMax API模型处理器"""
 
-    def __init__(self, model_name: str = "deepseek-r1:1.5b"):
+    def __init__(self, model_name: str = "MiniMax-M2.7-highspeed", api_key: str = None):
         self.model_name = model_name
+        self.api_key = api_key or os.getenv("MINIMAX_API_KEY")
+        self.api_url = os.getenv("MINIMAX_API_URL", "https://api.minimaxi.com/anthropic/v1/messages")
 
     async def generate_response(self, prompt: str, context: str = "") -> str:
-        """使用Ollama生成响应"""
+        """使用MiniMax API生成响应"""
         try:
-            # 构建完整的提示词
             full_prompt = f"{context}\n\n{prompt}" if context else prompt
 
-            response = ollama.chat(
-                model=self.model_name,
-                messages=[{'role': 'user', 'content': full_prompt}]
-            )
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+                "x-api-key": self.api_key,
+                "anthropic-version": "2023-06-01"
+            }
 
-            return response['message']['content']
+            payload = {
+                "model": self.model_name,
+                "messages": [
+                    {"role": "user", "content": full_prompt}
+                ],
+                "max_tokens": 4096
+            }
 
+            response = requests.post(self.api_url, headers=headers, json=payload, timeout=120)
+            response.raise_for_status()
+
+            result = response.json()
+            logger.info(f"API响应: {result}")
+            # Anthropic兼容格式
+            if "content" in result:
+                content = result["content"]
+                if isinstance(content, list):
+                    # 过滤掉thinking，只取text
+                    text_parts = []
+                    for item in content:
+                        item_type = item.get("type", "")
+                        if item_type == "text":
+                            text_parts.append(item.get("text", ""))
+                        elif item_type == "thinking":
+                            logger.info("跳过thinking内容")
+                    return "\n".join(text_parts) if text_parts else str(content)
+                elif isinstance(content, str):
+                    return content
+            logger.error(f"MiniMax API响应格式异常: {result}")
+            return f"抱歉，模型返回格式异常"
+
+        except requests.exceptions.Timeout:
+            logger.error("MiniMax API请求超时")
+            return "抱歉，模型请求超时，请稍后重试"
+        except requests.exceptions.RequestException as e:
+            logger.error(f"MiniMax API请求失败: {e}")
+            return f"抱歉，模型调用失败: {str(e)}"
         except Exception as e:
             logger.error(f"模型调用失败: {e}")
             return f"抱歉，处理您的请求时出现错误: {str(e)}"
@@ -679,7 +724,7 @@ class OllamaModelHandler:
         B. 风险清单（TOP3：场地、车辆、干线/支线）
         C. 产能与人力（分拣线利用率、缺口岗位与时段）
         D. 关键KPI（SLA命中率、滞留件、问题件、装车准点）
-        E. 行动清单（≤5条，明确“责任岗位+完成时限”）
+        E. 行动清单（≤5条，明确"责任岗位+完成时限"）
         """
 
         analysis = await self.generate_response(prompt)
@@ -761,6 +806,21 @@ class OllamaModelHandler:
 
         total_weight = sum(shipment.get('weight', 0) for shipment in shipments_data)
         return total_weight / len(shipments_data)
+
+    def _format_shipment_data(self, shipment_data: Dict) -> str:
+        """格式化单个物流数据"""
+        return f"""
+        物流单号: {shipment_data.get('id')}
+        状态: {shipment_data.get('status')}
+        发货地: {shipment_data.get('origin')} ({shipment_data.get('origin_city')})
+        收货地: {shipment_data.get('destination')} ({shipment_data.get('destination_city')})
+        快递公司: {shipment_data.get('courier_company')}
+        重量: {shipment_data.get('weight')} kg
+        运费: {shipment_data.get('shipping_fee')} 元
+        创建时间: {shipment_data.get('created_at')}
+        预计送达: {shipment_data.get('estimated_delivery')}
+        实际送达: {shipment_data.get('actual_delivery')}
+        """
 
     def _format_sample_shipments(self, shipments_data: List[Dict]) -> str:
         """格式化样本数据用于提示词"""

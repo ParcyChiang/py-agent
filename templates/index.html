@@ -10,6 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+    <script src="{{ url_for('static', filename='liquid-glass.js') }}"></script>
     <div class="container">
         <header>
             <h1>快递物流智能分析系统</h1>
@@ -24,6 +25,9 @@
             <a class="secondary" href="/page/report">日报中心</a>
             <a class="secondary" href="/page/dashboard">实时监控</a>
             <a class="secondary" href="/page/code_generator">代码生成器</a>
+<a class="secondary" href="/page/compare">物流对比</a>
+            <a class="secondary" href="/page/admin_log">日志中心</a>
+            <a class="secondary" href="/page/new_dashboard">用户管理</a>
             <span class="user-info">
                 <span id="currentUser"></span>
             </span>

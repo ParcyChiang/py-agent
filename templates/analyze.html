@@ -10,6 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+    <script src="{{ url_for('static', filename='liquid-glass.js') }}"></script>
     <div class="container">
         <header>
             <h1>运营分析</h1>
@@ -24,6 +25,7 @@
             <a class="secondary" href="/page/report">日报中心</a>
             <a class="secondary" href="/page/dashboard">实时监控</a>
             <a class="secondary" href="/page/code_generator">代码生成器</a>
+            <a class="secondary" href="/page/compare">物流对比</a>
             <a class="secondary" href="/page/admin_log">日志中心</a>
         </nav>
 
@@ -68,6 +70,7 @@
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ url_for('static', filename='cache.js') }}"></script>
     <script>
         let statusChart;
         
@@ -172,19 +175,50 @@
         }
         
         $(function(){
+            // 页面加载时从缓存恢复数据
+            const savedAnalysis = cacheGet('analyze_data');
+            if (savedAnalysis) {
+                try {
+                    $('#statsContent').html(savedAnalysis.statsContent);
+                    $('#analysisContent').html(savedAnalysis.analysisContent);
+                    $('#dailyReportContent').html(savedAnalysis.dailyReportContent);
+                    if (savedAnalysis.statusDistribution) {
+                        createStatusChart(savedAnalysis.statusDistribution);
+                    }
+                    if (savedAnalysis.chartData) {
+                        display3DCharts(savedAnalysis.chartData);
+                    }
+                    if (savedAnalysis.dataInfo) {
+                        displayDataInfo(savedAnalysis.dataInfo);
+                    }
+                } catch (e) {
+                    console.error('恢复数据失败:', e);
+                }
+            }
+
             $('#analyzeBtn').on('click', function() {
                 $('#analysisContent').html('分析中，请稍候...');
                 $('#dailyReportContent').html('生成报告中...');
                 $.getJSON('/analyze', function(response) {
                     if (response.success) {
-                        $('#statsContent').html(
-                            '<p>总发货量: '+response.statistics.total_shipments+'</p>'+
+                        const statsHtml = '<p>总发货量: '+response.statistics.total_shipments+'</p>'+
                             '<h4>状态分布:</h4>'+
-                            '<ul>'+Object.entries(response.summary.status_distribution).map(function(e){return '<li>'+e[0]+': '+e[1]+'</li>';}).join('')+'</ul>'
-                        );
+                            '<ul>'+Object.entries(response.summary.status_distribution).map(function(e){return '<li>'+e[0]+': '+e[1]+'</li>';}).join('')+'</ul>';
+
+                        $('#statsContent').html(statsHtml);
                         $('#analysisContent').html(response.analysis);
                         $('#dailyReportContent').html(response.daily_report);
-                        
+
+                        // 保存到缓存
+                        cacheSet('analyze_data', {
+                            statsContent: statsHtml,
+                            analysisContent: response.analysis,
+                            dailyReportContent: response.daily_report,
+                            statusDistribution: response.summary.status_distribution,
+                            chartData: response.statistics,
+                            dataInfo: response.statistics.data_info
+                        });
+
                         // 创建图表
                         createStatusChart(response.summary.status_distribution);
                         display3DCharts(response.statistics);

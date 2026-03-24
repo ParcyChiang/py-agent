@@ -10,6 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+    <script src="{{ url_for('static', filename='liquid-glass.js') }}"></script>
     <div class="container">
         <header>
             <h1>日报中心</h1>
@@ -24,6 +25,7 @@
             <a class="secondary" href="/page/report">日报中心</a>
             <a class="secondary" href="/page/dashboard">实时监控</a>
             <a class="secondary" href="/page/code_generator">代码生成器</a>
+            <a class="secondary" href="/page/compare">物流对比</a>
             <a class="secondary" href="/page/admin_log">日志中心</a>
         </nav>
 
@@ -37,13 +39,21 @@
     </div>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="{{ url_for('static', filename='cache.js') }}"></script>
     <script>
         $(function(){
+            // 页面加载时从缓存恢复数据
+            const savedReport = cacheGet('daily_report');
+            if (savedReport) {
+                $('#dailyReportContent').html(savedReport);
+            }
+
             $('#genReportBtn').on('click', function() {
                 $('#dailyReportContent').html('生成中...');
                 $.getJSON('/analyze', function(response) {
                     if (response.success) {
                         $('#dailyReportContent').html(response.daily_report);
+                        cacheSet('daily_report', response.daily_report);
                     } else {
                         $('#dailyReportContent').html('<div class="error">'+response.message+'</div>');
                     }
