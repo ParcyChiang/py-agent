@@ -138,6 +138,21 @@ class LogisticsDataManager:
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
                     """
                 )
+
+                # 操作日志表
+                cursor.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS operation_logs (
+                        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        user_id INT,
+                        username VARCHAR(64),
+                        action VARCHAR(128),
+                        detail TEXT,
+                        ip_address VARCHAR(64),
+                        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                    """
+                )
             conn.commit()
 
             # 初始化管理员账号
@@ -235,6 +250,48 @@ class LogisticsDataManager:
             return False, f"删除失败: {str(e)}"
         finally:
             cursor.close()
+            conn.close()
+
+    def add_log(self, user_id: int, username: str, action: str, detail: str = "", ip_address: str = "") -> None:
+        """添加操作日志"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "INSERT INTO operation_logs (user_id, username, action, detail, ip_address) VALUES (%s, %s, %s, %s, %s)",
+                (user_id, username, action, detail, ip_address)
+            )
+            conn.commit()
+        except Exception as e:
+            logger.error(f"添加日志失败: {e}")
+        finally:
+            cursor.close()
+            conn.close()
+
+    def get_all_logs(self, limit: int = 100) -> List[Dict]:
+        """获取所有操作日志"""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT id, user_id, username, action, detail, ip_address, timestamp FROM operation_logs ORDER BY timestamp DESC LIMIT %s",
+                    (limit,)
+                )
+                return cursor.fetchall()
+        finally:
+            conn.close()
+
+    def get_user_logs(self, user_id: int, limit: int = 50) -> List[Dict]:
+        """获取指定用户的操作日志"""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT id, user_id, username, action, detail, ip_address, timestamp FROM operation_logs WHERE user_id = %s ORDER BY timestamp DESC LIMIT %s",
+                    (user_id, limit)
+                )
+                return cursor.fetchall()
+        finally:
             conn.close()
 
     def import_from_csv(self, file_path: str) -> Dict[str, Any]:

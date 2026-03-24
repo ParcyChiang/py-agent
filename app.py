@@ -46,6 +46,8 @@ def login():
             session['user_id'] = user['id']
             session['username'] = user['username']
             session['role'] = user['role']
+            # 记录登录日志
+            data_manager.add_log(user['id'], user['username'], '登录', '用户登录系统', request.remote_addr)
             return redirect(url_for('index'))
         else:
             return render_template('login.html', error='用户名或密码错误')
@@ -55,6 +57,8 @@ def login():
 @app.route('/logout')
 def logout():
     """登出"""
+    if 'user_id' in session:
+        data_manager.add_log(session['user_id'], session['username'], '登出', '用户退出系统', request.remote_addr)
     session.clear()
     return redirect(url_for('login'))
 
@@ -80,6 +84,8 @@ def register():
 
         success, message = data_manager.create_user(username, password)
         if success:
+            # 记录注册日志
+            data_manager.add_log(0, username, '注册', '用户注册新账号', request.remote_addr)
             return redirect(url_for('login'))
         else:
             return render_template('register.html', error=message)
@@ -124,6 +130,67 @@ def api_current_user():
             }
         })
     return jsonify({'success': False, 'message': '未登录'})
+
+@app.route('/api/logs')
+def api_get_logs():
+    """获取操作日志（仅管理员）"""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': '未登录'})
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'message': '无权限'})
+
+    limit = request.args.get('limit', 100, type=int)
+    logs = data_manager.get_all_logs(limit)
+    return jsonify({'success': True, 'logs': logs})
+
+@app.route('/api/users')
+def api_get_users():
+    """获取用户列表（仅管理员）"""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': '未登录'})
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'message': '无权限'})
+
+    users = data_manager.get_all_users()
+    return jsonify({'success': True, 'users': users})
+
+@app.route('/api/users/<int:user_id>', methods=['DELETE'])
+def api_delete_user(user_id):
+    """删除用户（仅管理员）"""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': '未登录'})
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'message': '无权限'})
+
+    success, message = data_manager.delete_user(user_id)
+    if success:
+        # 记录删除用户日志
+        data_manager.add_log(
+            session['user_id'],
+            session['username'],
+            '删除用户',
+            f'删除了用户ID={user_id}',
+            request.remote_addr
+        )
+    return jsonify({'success': success, 'message': message})
+
+@app.route('/page/logs')
+def page_logs():
+    """日志页面（仅管理员）"""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    if session.get('role') != 'admin':
+        return redirect(url_for('index'))
+    return render_template('logs.html')
+
+@app.route('/page/users')
+def page_users():
+    """用户管理页面（仅管理员）"""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    if session.get('role') != 'admin':
+        return redirect(url_for('index'))
+    return render_template('users.html')
 
 @app.route('/page/upload')
 def page_upload():
@@ -175,6 +242,16 @@ def upload_file():
         # 基于内存流导入，不落盘
         file_bytes = file.read()
         result = data_manager.import_from_csv_bytes(file_bytes)
+        # 记录上传日志
+        if 'user_id' in session:
+            count = result.get('count', 0) if result.get('success') else 0
+            data_manager.add_log(
+                session['user_id'],
+                session['username'],
+                '数据上传',
+                f'上传CSV文件，导入{count}条记录',
+                request.remote_addr
+            )
         return jsonify(result)
 
     return jsonify({'success': False, 'message': '只支持CSV文件'})
@@ -184,6 +261,15 @@ def delete_csv():
     """删除（清空）所有已导入的CSV数据"""
     try:
         data_manager.clear_all_data()
+        # 记录删除日志
+        if 'user_id' in session:
+            data_manager.add_log(
+                session['user_id'],
+                session['username'],
+                '清空数据',
+                '清空所有CSV导入数据',
+                request.remote_addr
+            )
         return jsonify({'success': True, 'message': '已清空所有CSV导入数据'})
     except Exception as e:
         return jsonify({'success': False, 'message': f'清空失败: {str(e)}'})

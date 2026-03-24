@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户管理 - 物流智能分析</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="user-header">
+        <span class="user-info"><span id="currentUser"></span></span>
+        <a class="btn-logout" href="/logout">退出</a>
+    </div>
+    <script src="{{ url_for('static', filename='liquid-glass.js') }}"></script>
+    <script src="{{ url_for('static', filename='user_header.js') }}"></script>
+    <div class="container">
+        <header>
+            <h1>用户管理</h1>
+            <p>管理系统用户账号</p>
+        </header>
+
+        <nav class="nav">
+            <a href="/">首页</a>
+            <a class="secondary" href="/page/upload">数据导入</a>
+            <a class="secondary" href="/page/analyze">运营分析</a>
+            <a class="secondary" href="/page/shipments">数据列表</a>
+            <a class="secondary" href="/page/report">日报中心</a>
+            <a class="secondary" href="/page/dashboard">实时监控</a>
+            <a class="secondary" href="/page/code_generator">代码生成器</a>
+            <a class="secondary" href="/page/compare">物流对比</a>
+        </nav>
+
+        <div class="users-section">
+            <div class="users-header">
+                <h3>用户列表</h3>
+                <button id="refreshBtn" class="btn-refresh">刷新</button>
+            </div>
+            <div id="usersContent">
+                <div class="loading">加载中...</div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .users-section {
+            background: rgba(20, 25, 45, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(100, 130, 200, 0.3);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        .users-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(100, 130, 200, 0.2);
+        }
+        .users-header h3 {
+            color: white;
+            margin: 0;
+        }
+        .btn-refresh {
+            padding: 8px 16px;
+            background: rgba(30, 120, 200, 0.8);
+            color: white;
+            border: 1px solid rgba(100, 180, 255, 0.4);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        .btn-refresh:hover {
+            background: rgba(40, 140, 220, 0.9);
+        }
+        .users-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .users-table th,
+        .users-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(100, 130, 200, 0.15);
+            color: rgba(255, 255, 255, 0.9);
+        }
+        .users-table th {
+            background: rgba(30, 40, 70, 0.8);
+            font-weight: 600;
+            color: white;
+        }
+        .users-table tr:hover td {
+            background: rgba(60, 80, 140, 0.3);
+        }
+        .user-role {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        .user-role.admin {
+            background: rgba(200, 60, 60, 0.4);
+            color: #ff6b6b;
+        }
+        .user-role.user {
+            background: rgba(30, 120, 200, 0.4);
+            color: #60a5fa;
+        }
+        .btn-delete {
+            padding: 6px 12px;
+            background: rgba(200, 60, 60, 0.8);
+            color: white;
+            border: 1px solid rgba(255, 100, 100, 0.4);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s ease;
+        }
+        .btn-delete:hover {
+            background: rgba(220, 70, 70, 0.9);
+        }
+        .btn-delete:disabled {
+            background: rgba(100, 100, 100, 0.5);
+            cursor: not-allowed;
+        }
+        .log-time {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+        .no-users {
+            text-align: center;
+            padding: 40px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+        .toast {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            padding: 12px 24px;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            z-index: 2000;
+            animation: slideIn 0.3s ease;
+        }
+        .toast.success {
+            background: rgba(34, 197, 94, 0.9);
+        }
+        .toast.error {
+            background: rgba(239, 68, 68, 0.9);
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+    </style>
+
+    <script>
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function loadUsers() {
+            document.getElementById('usersContent').innerHTML = '<div class="loading">加载中...</div>';
+            fetch('/api/users')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        renderUsers(data.users);
+                    } else {
+                        document.getElementById('usersContent').innerHTML =
+                            '<div class="no-users">无权限查看用户列表</div>';
+                    }
+                })
+                .catch(() => {
+                    document.getElementById('usersContent').innerHTML =
+                        '<div class="no-users">加载失败，请重试</div>';
+                });
+        }
+
+        function renderUsers(users) {
+            if (!users || users.length === 0) {
+                document.getElementById('usersContent').innerHTML =
+                    '<div class="no-users">暂无用户</div>';
+                return;
+            }
+
+            let html = `
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>用户名</th>
+                            <th>角色</th>
+                            <th>注册时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            users.forEach(user => {
+                const roleClass = user.role === 'admin' ? 'admin' : 'user';
+                const roleText = user.role === 'admin' ? '管理员' : '普通用户';
+                const createdAt = new Date(user.created_at).toLocaleString('zh-CN');
+                const isAdmin = user.role === 'admin';
+                const deleteBtn = isAdmin
+                    ? '<button class="btn-delete" disabled>不可删除</button>'
+                    : `<button class="btn-delete" onclick="deleteUser(${user.id}, '${user.username}')">删除</button>`;
+
+                html += `
+                    <tr>
+                        <td>${user.id}</td>
+                        <td>${user.username}</td>
+                        <td><span class="user-role ${roleClass}">${roleText}</span></td>
+                        <td class="log-time">${createdAt}</td>
+                        <td>${deleteBtn}</td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+            document.getElementById('usersContent').innerHTML = html;
+        }
+
+        function deleteUser(userId, username) {
+            if (!confirm(`确定要删除用户 "${username}" 吗？此操作不可恢复。`)) {
+                return;
+            }
+
+            fetch(`/api/users/${userId}`, { method: 'DELETE' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast('用户已删除', 'success');
+                        loadUsers();
+                    } else {
+                        showToast(data.message || '删除失败', 'error');
+                    }
+                })
+                .catch(() => {
+                    showToast('删除失败，请重试', 'error');
+                });
+        }
+
+        document.getElementById('refreshBtn').addEventListener('click', loadUsers);
+
+        // 初始加载
+        loadUsers();
+    </script>
+</body>
+</html>

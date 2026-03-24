@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>操作日志 - 物流智能分析</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="user-header">
+        <span class="user-info"><span id="currentUser"></span></span>
+        <a class="btn-logout" href="/logout">退出</a>
+    </div>
+    <script src="{{ url_for('static', filename='liquid-glass.js') }}"></script>
+    <script src="{{ url_for('static', filename='user_header.js') }}"></script>
+    <div class="container">
+        <header>
+            <h1>操作日志</h1>
+            <p>查看所有用户的操作记录</p>
+        </header>
+
+        <nav class="nav">
+            <a href="/">首页</a>
+            <a class="secondary" href="/page/upload">数据导入</a>
+            <a class="secondary" href="/page/analyze">运营分析</a>
+            <a class="secondary" href="/page/shipments">数据列表</a>
+            <a class="secondary" href="/page/report">日报中心</a>
+            <a class="secondary" href="/page/dashboard">实时监控</a>
+            <a class="secondary" href="/page/code_generator">代码生成器</a>
+            <a class="secondary" href="/page/compare">物流对比</a>
+            <a class="secondary" href="/page/admin_log">日志中心</a>
+        </nav>
+
+        <div class="logs-section">
+            <div class="logs-header">
+                <h3>最近100条操作记录</h3>
+                <button id="refreshBtn" class="btn-refresh">刷新</button>
+            </div>
+            <div id="logsContent">
+                <div class="loading">加载中...</div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .logs-section {
+            background: rgba(20, 25, 45, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(100, 130, 200, 0.3);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        .logs-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(100, 130, 200, 0.2);
+        }
+        .logs-header h3 {
+            color: white;
+            margin: 0;
+        }
+        .btn-refresh {
+            padding: 8px 16px;
+            background: rgba(30, 120, 200, 0.8);
+            color: white;
+            border: 1px solid rgba(100, 180, 255, 0.4);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        .btn-refresh:hover {
+            background: rgba(40, 140, 220, 0.9);
+        }
+        .logs-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .logs-table th,
+        .logs-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(100, 130, 200, 0.15);
+            color: rgba(255, 255, 255, 0.9);
+        }
+        .logs-table th {
+            background: rgba(30, 40, 70, 0.8);
+            font-weight: 600;
+            color: white;
+        }
+        .logs-table tr:hover td {
+            background: rgba(60, 80, 140, 0.3);
+        }
+        .log-action {
+            display: inline-block;
+            padding: 4px 10px;
+            background: rgba(30, 120, 200, 0.4);
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        .log-time {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+        .log-user {
+            font-weight: 500;
+            color: #0ea5e9;
+        }
+        .log-ip {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+        .log-detail {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        .no-logs {
+            text-align: center;
+            padding: 40px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+    </style>
+
+    <script>
+        function loadLogs() {
+            document.getElementById('logsContent').innerHTML = '<div class="loading">加载中...</div>';
+            fetch('/api/logs')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        renderLogs(data.logs);
+                    } else {
+                        document.getElementById('logsContent').innerHTML =
+                            '<div class="no-logs">无权限查看日志或加载失败</div>';
+                    }
+                })
+                .catch(() => {
+                    document.getElementById('logsContent').innerHTML =
+                        '<div class="no-logs">加载失败，请重试</div>';
+                });
+        }
+
+        function renderLogs(logs) {
+            if (!logs || logs.length === 0) {
+                document.getElementById('logsContent').innerHTML =
+                    '<div class="no-logs">暂无日志记录</div>';
+                return;
+            }
+
+            let html = `
+                <table class="logs-table">
+                    <thead>
+                        <tr>
+                            <th>时间</th>
+                            <th>用户</th>
+                            <th>操作</th>
+                            <th>详情</th>
+                            <th>IP</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            logs.forEach(log => {
+                const time = new Date(log.timestamp).toLocaleString('zh-CN');
+                html += `
+                    <tr>
+                        <td class="log-time">${time}</td>
+                        <td class="log-user">${log.username || '系统'}</td>
+                        <td><span class="log-action">${log.action}</span></td>
+                        <td class="log-detail" title="${log.detail || ''}">${log.detail || '-'}</td>
+                        <td class="log-ip">${log.ip_address || '-'}</td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+            document.getElementById('logsContent').innerHTML = html;
+        }
+
+        document.getElementById('refreshBtn').addEventListener('click', loadLogs);
+
+        // 初始加载
+        loadLogs();
+    </script>
+</body>
+</html>

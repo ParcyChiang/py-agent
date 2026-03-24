@@ -138,6 +138,40 @@ header p {
     transform: translateY(-1px);
 }
 
+.user-header .btn-logs {
+    padding: 8px 16px;
+    background: rgba(60, 140, 100, 0.8);
+    color: white;
+    border-radius: var(--border-radius-sm);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    border: 1px solid rgba(100, 220, 150, 0.4);
+    transition: all 0.3s ease;
+}
+
+.user-header .btn-logs:hover {
+    background: rgba(70, 160, 110, 0.9);
+    transform: translateY(-1px);
+}
+
+.user-header .btn-user {
+    padding: 8px 16px;
+    background: rgba(140, 100, 200, 0.8);
+    color: white;
+    border-radius: var(--border-radius-sm);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    border: 1px solid rgba(180, 140, 255, 0.4);
+    transition: all 0.3s ease;
+}
+
+.user-header .btn-user:hover {
+    background: rgba(150, 110, 210, 0.9);
+    transform: translateY(-1px);
+}
+
 .nav a {
     position: relative;
     padding: 10px 14px;
