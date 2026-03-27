@@ -73,11 +73,11 @@ class LiquidGlass {
                 vec2 uv = gl_FragCoord.xy / u_resolution;
                 vec2 mouse = u_mouse;
 
-                // Distance from mouse
+                // 计算鼠标距离影响范围
                 float dist = distance(uv, mouse);
                 float mouseInfluence = smoothstep(0.5, 0.0, dist);
 
-                // Base dark gradient - deep blue/purple
+                // 深色渐变背景色
                 vec3 baseColor1 = vec3(0.05, 0.05, 0.15);  // Deep dark blue
                 vec3 baseColor2 = vec3(0.08, 0.05, 0.12);  // Deep purple
                 vec3 baseColor3 = vec3(0.03, 0.08, 0.15);  // Dark teal
@@ -92,7 +92,7 @@ class LiquidGlass {
                 float amp = 0.015;
                 float freq = 2.5;
 
-                // Waves emanate from mouse position
+                // 以鼠标为中心产生同心圆波纹
                 vec2 toMouse = uv - mouse;
                 float angle = atan(toMouse.y, toMouse.x);
 
@@ -119,11 +119,11 @@ class LiquidGlass {
                 color += accentColor * highlight;
                 color += accentColor * ring * 0.3;
 
-                // Vignette effect
+                // 暗角效果 - 边缘变暗
                 float vignette = 1.0 - smoothstep(0.3, 1.5, length(uv - 0.5) * 1.5);
                 color *= vignette * 0.3 + 0.7;
 
-                // Ensure minimum brightness for text readability
+                // 确保最低亮度，防止文字可读性下降
                 color = max(color, vec3(0.08));
 
                 gl_FragColor = vec4(color, 1.0);

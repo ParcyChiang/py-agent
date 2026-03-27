@@ -695,7 +695,7 @@ class MiniMaxModelHandler:
         self.api_url = os.getenv("MINIMAX_API_URL", "https://api.minimaxi.com/anthropic/v1/messages")
 
     async def generate_response(self, prompt: str, context: str = "") -> str:
-        """使用MiniMax API生成响应"""
+        """使用API生成响应"""
         try:
             full_prompt = f"{context}\n\n{prompt}" if context else prompt
 
@@ -734,14 +734,14 @@ class MiniMaxModelHandler:
                     return "\n".join(text_parts) if text_parts else str(content)
                 elif isinstance(content, str):
                     return content
-            logger.error(f"MiniMax API响应格式异常: {result}")
+            logger.error(f"API响应格式异常: {result}")
             return f"抱歉，模型返回格式异常"
 
         except requests.exceptions.Timeout:
-            logger.error("MiniMax API请求超时")
+            logger.error("API请求超时")
             return "抱歉，模型请求超时，请稍后重试"
         except requests.exceptions.RequestException as e:
-            logger.error(f"MiniMax API请求失败: {e}")
+            logger.error(f"API请求失败: {e}")
             return f"抱歉，模型调用失败: {str(e)}"
         except Exception as e:
             logger.error(f"模型调用失败: {e}")

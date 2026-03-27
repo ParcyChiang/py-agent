@@ -534,12 +534,12 @@ def _generate_chart_data(shipments, daily_stats):
     # 散点图数据准备
     unique_cities = sorted(list(set(item['city'] for item in weight_fee_city_data)))
     city_to_index = {city: i for i, city in enumerate(unique_cities)}
-    
+
     # 线框图数据准备
     all_customer_types = sorted(list(customer_priority_status_data.keys()))
     all_priorities = sorted(list(set(priority for priority_data in customer_priority_status_data.values() for priority in priority_data.keys())))
     all_line_statuses = sorted(list(set(status for priority_data in customer_priority_status_data.values() for status_data in priority_data.values() for status in status_data.keys())))
-    
+
     # 创建线框图数据矩阵
     X_wireframe = np.arange(len(all_customer_types))  # 客户类型索引
     Y_wireframe = np.arange(len(all_priorities))  # 优先级索引
@@ -553,7 +553,7 @@ def _generate_chart_data(shipments, daily_stats):
                 Z[i, j] = customer_priority_status_data.get(customer_type, {}).get(priority, {}).get(status, 0)
         wireframe_data[status] = Z
     
-    # 生成三维曲面图 - 维度：城市 x 时间 x 状态数量
+    # 生成三维曲面图 - 维度：城市 x 时间 x 状态数量`
     def create_3d_surface_plot():
         fig = plt.figure(figsize=(12, 8))
         ax = fig.add_subplot(111, projection='3d')
