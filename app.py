@@ -5,6 +5,8 @@ import atexit
 import signal
 import sys
 import io
+import types
+import builtins
 import contextlib
 import traceback
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session
@@ -805,47 +807,53 @@ async def generate_code():
         
         # 构建代码生成提示词
         context = f"""
-        你是一个Python数据分析专家。用户想要分析物流数据，请根据用户的问题生成相应的Python代码。
-        
-        可用的物流数据字段包括：
-        - id: 物流单号
-        - origin: 发货地
-        - destination: 收货地
-        - origin_city: 发货城市
-        - destination_city: 收货城市
-        - status: 物流状态
-        - estimated_delivery: 预计送达时间
-        - actual_delivery: 实际送达时间
-        - weight: 重量
-        - courier_company: 快递公司
-        - shipping_fee: 运费
-        - created_at: 创建时间
-        
-        数据样本（前5条）：
-        {shipments[:5] if shipments else '暂无数据'}
-        
-        请生成完整的Python代码，包括：
-        1. 导入必要的库（pandas, matplotlib, seaborn等）
-        2. 数据加载和处理
-        3. 数据分析和可视化
-        4. 结果输出
-        
-        代码应该能够直接运行，并且包含适当的错误处理。
-        """
-        
-        prompt = f"""
-        用户问题：{question}
-        
-        请生成Python代码来分析物流数据。代码应该：
-        - 使用pandas处理数据
-        - 使用matplotlib或seaborn进行可视化
-        - 包含适当的注释
-        - 能够处理空数据和异常情况
-        - 输出清晰的分析结果
-        
-        只返回Python代码，不要包含其他说明文字。
-        """
-        
+你是一个Python数据分析专家，专注于物流数据分析。
+
+## 可用的物流数据字段
+- id: 物流单号
+- origin: 发货地
+- origin_city: 发货城市
+- destination: 收货地
+- destination_city: 收货城市
+- status: 物流状态
+- estimated_delivery: 预计送达时间
+- actual_delivery: 实际送达时间
+- weight: 重量
+- courier_company: 快递公司
+- shipping_fee: 运费
+- created_at: 创建时间
+
+## 数据样本（前5条）
+{shipments[:5] if shipments else '暂无数据'}
+
+## 重要说明
+- 数据已经存在于 `shipments` 变量中（类型：list of dict），不需要重新加载
+- `shipments` 变量可以直接使用，无需导入或读取
+- 代码中可以直接使用 `pd.DataFrame(shipments)` 将数据转为 DataFrame
+
+## 可用的库和函数
+- pandas (pd): 数据处理
+- numpy (np): 数值计算
+- matplotlib.pyplot (plt): 绘图
+- seaborn (sns): 高级可视化
+- datetime, timedelta: 时间处理
+- json: JSON处理
+- 所有基础函数：print, len, str, int, float, list, dict, range, sorted, sum, min, max, zip, map, filter 等
+
+## 输出要求
+- 使用 print() 输出分析结果
+- **图表标题和标签请使用英文**，避免中文字体问题
+- 如果需要生成图像，使用 plt.savefig() 保存到 BytesIO 缓冲区，然后 base64 编码输出
+- 不要使用 input() 函数
+- 不要使用 open() 进行文件读写
+- 不要导入 os, subprocess, sys, pathlib 等系统模块
+- 添加适当的错误处理，处理空数据情况
+"""
+
+        prompt = f"""用户问题：{question}
+
+请根据上述信息生成Python代码。只返回可运行的Python代码，不要包含任何说明文字、注释或markdown标记。代码应该能够直接在提供的沙箱环境中执行。"""
+
         # 使用AI生成代码
         code = await model_handler.generate_response(prompt, context)
         
@@ -884,48 +892,36 @@ def execute_code():
             return jsonify({'success': False, 'error': '没有提供代码'})
         
         # 创建安全的执行环境
-        safe_globals = {
-            '__builtins__': {
-                'print': print,
-                'len': len,
-                'str': str,
-                'int': int,
-                'float': float,
-                'list': list,
-                'dict': dict,
-                'tuple': tuple,
-                'set': set,
-                'min': min,
-                'max': max,
-                'sum': sum,
-                'sorted': sorted,
-                'range': range,
-                'enumerate': enumerate,
-                'zip': zip,
-                'map': map,
-                'filter': filter,
-                'abs': abs,
-                'round': round,
-                'type': type,
-                'isinstance': isinstance,
-                'hasattr': hasattr,
-                'getattr': getattr,
-                'setattr': setattr,
-                'open': open,
-                '__import__': __import__,
-            }
+        # 使用一个受限的 __builtins__，移除危险函数
+        _allowed_builtins = {
+            'print', 'len', 'str', 'int', 'float', 'list', 'dict', 'tuple', 'set',
+            'min', 'max', 'sum', 'sorted', 'range', 'enumerate', 'zip', 'map',
+            'filter', 'abs', 'round', 'type', 'isinstance', 'hasattr', 'getattr',
+            'setattr', '__import__'
         }
-        
+        safe_builtins = {name: getattr(builtins, name) for name in _allowed_builtins if hasattr(builtins, name)}
+        # 确保 __import__ 可用
+        if '__import__' not in safe_builtins:
+            safe_builtins['__import__'] = builtins.__import__
+
         # 添加常用的数据分析库
         try:
             import pandas as pd
             import numpy as np
+            import matplotlib
+            matplotlib.use('Agg')  # 非交互式后端
             import matplotlib.pyplot as plt
             import seaborn as sns
             from datetime import datetime, timedelta
             import json
-            
-            safe_globals.update({
+            import io
+
+            # 配置 matplotlib 中文字体
+            plt.rcParams['font.sans-serif'] = ['Arial Unicode MS', 'SimHei', 'Hiragino Sans GB', 'Heiti SC', 'STHeiti', 'WenQuanYi Micro Hei', 'Noto Sans CJK SC', 'DejaVu Sans']
+            plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
+
+            safe_globals = {
+                '__builtins__': safe_builtins,
                 'pd': pd,
                 'np': np,
                 'plt': plt,
@@ -933,8 +929,9 @@ def execute_code():
                 'datetime': datetime,
                 'timedelta': timedelta,
                 'json': json,
+                'io': io,
                 'shipments': data_manager.get_all_shipments(limit=10000)[0]  # 提供数据
-            })
+            }
         except ImportError as e:
             return jsonify({
                 'success': False,
@@ -965,10 +962,34 @@ def execute_code():
             
 
             
-            return jsonify({
+            # 从执行后的 globals 中提取 base64 图像数据
+            image_data = None
+            for key in ['img_base64', 'image_base64', 'img_data', 'img_buffer']:
+                if key in safe_globals:
+                    val = safe_globals[key]
+                    if isinstance(val, (str, bytes)) and len(str(val)) > 100:
+                        # 如果是 BytesIO 对象，尝试获取其内容
+                        if hasattr(val, 'getvalue'):
+                            val = val.getvalue()
+                        if isinstance(val, bytes):
+                            import base64 as b64_module
+                            try:
+                                image_data = b64_module.b64encode(val).decode('ascii')
+                                break
+                            except:
+                                pass
+                        elif isinstance(val, str) and len(val) > 100:
+                            image_data = val
+                            break
+
+            result = {
                 'success': True,
                 'output': output or '代码执行成功，无输出内容'
-            })
+            }
+            if image_data:
+                result['image'] = image_data
+
+            return jsonify(result)
             
         except Exception as e:
             error_msg = f'代码执行异常:\n{str(e)}\n\n{traceback.format_exc()}'

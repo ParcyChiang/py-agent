@@ -190,6 +190,22 @@
                 if (result.success) {
                     outputDiv.classList.add('success-output');
                     outputDiv.textContent = result.output || '代码执行成功，无输出内容';
+
+                    // 如果有图像数据，显示图像
+                    let imageContainer = document.getElementById('imageContainer');
+                    if (result.image) {
+                        if (!imageContainer) {
+                            imageContainer = document.createElement('div');
+                            imageContainer.id = 'imageContainer';
+                            imageContainer.style.marginTop = '15px';
+                            imageContainer.style.textAlign = 'center';
+                            outputDiv.parentNode.insertBefore(imageContainer, outputDiv.nextSibling);
+                        }
+                        imageContainer.innerHTML = `<img src="data:image/png;base64,${result.image}" style="max-width:100%; border:1px solid #ddd; border-radius:8px;" />`;
+                    } else if (imageContainer) {
+                        imageContainer.remove();
+                    }
+
                     cacheSet('code_output', result.output || '代码执行成功，无输出内容');
                 } else {
                     outputDiv.classList.add('error-output');
@@ -215,6 +231,8 @@
             document.getElementById('questionInput').value = '';
             document.getElementById('generatedCode').textContent = '';
             document.getElementById('executionOutput').textContent = '';
+            const imageContainer = document.getElementById('imageContainer');
+            if (imageContainer) imageContainer.remove();
             document.getElementById('codeContainer').style.display = 'none';
             document.getElementById('outputContainer').style.display = 'none';
             document.getElementById('executeBtn').disabled = true;
