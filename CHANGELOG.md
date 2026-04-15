@@ -4,6 +4,7 @@
 2. feat: compare接收回调适配markdown
 3. feat: compare.select下拉框提前获取表中数据
 4. fix: compare 点击 X 清除后会自动触发搜索，展示新的结果
+5. fix: compare缓存
 
 ### v1.2
 1. feat: upload页面新增分页器，默认每页10条数据

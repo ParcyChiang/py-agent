@@ -458,6 +458,31 @@
                 pageSize = savedComparison.pageSize || 20;
                 $('#comparisonResult').html(savedComparison.html);
                 generatePagination(savedComparison.total, savedComparison.page, savedComparison.pageSize);
+                // 恢复筛选框值
+                if (savedComparison.originFilter) {
+                    $('#originFilter').val(savedComparison.originFilter);
+                    if (savedComparison.originFilter) $('#originFilter').siblings('.clear-btn').addClass('show');
+                }
+                if (savedComparison.destinationFilter) {
+                    $('#destinationFilter').val(savedComparison.destinationFilter);
+                    if (savedComparison.destinationFilter) $('#destinationFilter').siblings('.clear-btn').addClass('show');
+                }
+                if (savedComparison.courierFilter) {
+                    $('#courierFilter').val(savedComparison.courierFilter);
+                    if (savedComparison.courierFilter) $('#courierFilter').siblings('.clear-btn').addClass('show');
+                }
+                $('#pageSize').val(pageSize);
+
+                // 恢复智能分析结果
+                $('.analyze-btn').each(function() {
+                    var index = $(this).data('index');
+                    var page = $(this).data('page');
+                    var cachedAnalysis = cacheGet('comparison_analysis_' + index + '_' + page);
+                    if (cachedAnalysis) {
+                        var markdownContent = marked.parse(cachedAnalysis);
+                        $('#analysis-' + index).html('<h4>智能分析结果</h4><div class="markdown-body">' + markdownContent + '</div>');
+                    }
+                });
             }
 
             // 加载筛选下拉选项
@@ -646,7 +671,10 @@
                                 currentPage: page,
                                 pageSize: pageSize,
                                 total: response.total,
-                                page: response.page
+                                page: response.page,
+                                originFilter: originFilter,
+                                destinationFilter: destinationFilter,
+                                courierFilter: courierFilter
                             });
 
                             // 生成分页控件
@@ -739,9 +767,11 @@
                 loadComparisonData(currentPage);
             });
 
-            // 页面加载时自动加载数据
-            currentPage = 1;
-            loadComparisonData(currentPage);
+            // 页面加载时自动加载数据（只有没有缓存数据时才加载）
+            if (!cacheGet('comparison_data')) {
+                currentPage = 1;
+                loadComparisonData(currentPage);
+            }
 
             // 分页按钮点击事件
             $(document).on('click', '.pagination a', function(e) {
