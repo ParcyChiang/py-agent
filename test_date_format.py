@@ -14,7 +14,7 @@ if __name__ == "__main__":
     data_manager = create_data_manager()
     
     # 获取所有运单数据
-    shipments = data_manager.get_all_shipments()
+    shipments, _ = data_manager.get_all_shipments()
     print(f"获取到 {len(shipments)} 条记录")
     
     if shipments:

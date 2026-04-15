@@ -276,7 +276,7 @@ def get_chart_data():
     """获取图表数据（不调用AI）"""
     try:
         # 获取所有物流数据
-        shipments = data_manager.get_all_shipments(limit=10000)
+        shipments, _ = data_manager.get_all_shipments(limit=10000)
 
         if not shipments:
             return jsonify({'success': False, 'message': '没有可分析的数据，请先上传CSV文件'})
@@ -317,7 +317,7 @@ def analyze_data():
     """分析物流数据"""
     try:
         # 获取所有物流数据
-        shipments = data_manager.get_all_shipments(limit=10000)
+        shipments, _ = data_manager.get_all_shipments(limit=10000)
 
         if not shipments:
             return jsonify({'success': False, 'message': '没有可分析的数据，请先上传CSV文件'})
@@ -375,7 +375,7 @@ def get_analysis_report():
     """生成运营分析报告（不含三维图表）"""
     try:
         # 获取所有物流数据
-        shipments = data_manager.get_all_shipments(limit=10000)
+        shipments, _ = data_manager.get_all_shipments(limit=10000)
 
         if not shipments:
             return jsonify({'success': False, 'message': '没有可分析的数据，请先上传CSV文件'})
@@ -408,10 +408,20 @@ def get_analysis_report():
 
 @app.route('/shipments', methods=['GET'])
 def get_shipments():
-    """获取物流数据列表"""
-    limit = request.args.get('limit', 100, type=int)
-    shipments = data_manager.get_all_shipments(limit=limit)
-    return jsonify({'success': True, 'data': shipments})
+    """获取物流数据列表，支持分页"""
+    page = request.args.get('page', 1, type=int)
+    pageSize = request.args.get('pageSize', 10, type=int)
+    limit = request.args.get('limit', None, type=int)
+
+    if limit is not None:
+        # 兼容旧的 limit 参数
+        shipments = data_manager.get_all_shipments(limit=limit)
+        if isinstance(shipments, tuple):
+            shipments = shipments[0]
+        return jsonify({'success': True, 'data': shipments, 'total': len(shipments)})
+
+    shipments, total = data_manager.get_all_shipments(page=page, pageSize=pageSize)
+    return jsonify({'success': True, 'data': shipments, 'total': total, 'page': page, 'pageSize': pageSize})
 
 
 @app.route('/shipment/<shipment_id>', methods=['GET'])
@@ -791,7 +801,7 @@ async def generate_code():
             return jsonify({'success': False, 'message': '请输入问题'})
         
         # 获取物流数据作为上下文
-        shipments = data_manager.get_all_shipments(limit=1000)
+        shipments, _ = data_manager.get_all_shipments(limit=1000)
         
         # 构建代码生成提示词
         context = f"""
@@ -923,7 +933,7 @@ def execute_code():
                 'datetime': datetime,
                 'timedelta': timedelta,
                 'json': json,
-                'shipments': data_manager.get_all_shipments(limit=10000)  # 提供数据
+                'shipments': data_manager.get_all_shipments(limit=10000)[0]  # 提供数据
             })
         except ImportError as e:
             return jsonify({
@@ -988,8 +998,8 @@ def get_dashboard_trend():
     """获取动态看板趋势数据"""
     try:
         granularity = request.args.get('granularity', 'realtime')
-        shipments = data_manager.get_all_shipments(limit=10000)
-        
+        shipments, _ = data_manager.get_all_shipments(limit=10000)
+
         if not shipments:
             return jsonify({'success': False, 'message': '没有可用的数据'})
         
@@ -1033,8 +1043,8 @@ def get_dashboard_trend():
 def get_dashboard_metrics():
     """获取动态看板指标数据"""
     try:
-        shipments = data_manager.get_all_shipments(limit=10000)
-        
+        shipments, _ = data_manager.get_all_shipments(limit=10000)
+
         if not shipments:
             return jsonify({'success': False, 'message': '没有可用的数据'})
         
@@ -1124,9 +1134,9 @@ def get_dashboard_table():
         search = request.args.get('search', '')
         sortField = request.args.get('sortField', 'time')
         sortDirection = request.args.get('sortDirection', 'desc')
-        
-        shipments = data_manager.get_all_shipments(limit=10000)
-        
+
+        shipments, _ = data_manager.get_all_shipments(limit=10000)
+
         if not shipments:
             return jsonify({'success': False, 'message': '没有可用的数据'})
         
@@ -1204,8 +1214,8 @@ def compare_shipments():
         pageSize = request.args.get('pageSize', 20, type=int)
         
         # 获取所有物流数据
-        shipments = data_manager.get_all_shipments(limit=10000)
-        
+        shipments, _ = data_manager.get_all_shipments(limit=10000)
+
         if not shipments:
             return jsonify({'success': False, 'message': '没有可用的数据'})
         

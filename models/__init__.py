@@ -579,18 +579,33 @@ class LogisticsDataManager:
         finally:
             conn.close()
 
-    def get_all_shipments(self, limit: int = 10000) -> List[Dict]:
-        """获取所有物流信息"""
+    def get_all_shipments(self, limit: int = 10000, page: int = None, pageSize: int = None) -> List[Dict]:
+        """获取所有物流信息，支持分页"""
         conn = self._get_connection()
         try:
             with conn.cursor() as cursor:
-                cursor.execute('SELECT * FROM shipments ORDER BY created_at DESC LIMIT %s', (int(limit),))
+                # 获取总记录数
+                cursor.execute('SELECT COUNT(*) as total FROM shipments')
+                total = cursor.fetchone()['total']
+
+                # 构建查询
+                if page is not None and pageSize is not None:
+                    offset = (page - 1) * pageSize
+                    cursor.execute(
+                        'SELECT * FROM shipments ORDER BY created_at DESC LIMIT %s OFFSET %s',
+                        (int(pageSize), int(offset))
+                    )
+                else:
+                    cursor.execute(
+                        'SELECT * FROM shipments ORDER BY created_at DESC LIMIT %s',
+                        (int(limit),)
+                    )
                 rows = cursor.fetchall()
                 result = []
                 for row in rows:
                     row['dimensions'] = json.loads(row.get('dimensions') or '{}')
                     result.append(row)
-                return result
+                return result, total
         finally:
             conn.close()
 

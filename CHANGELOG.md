@@ -1,5 +1,9 @@
 ## py-agent搭建Log
 ### v1.2
+1. feat: upload页面新增分页器，默认每页10条数据
+2. refactor: 合并upload与shipments页面，导入CSV后自动加载物流数据
+
+### v1.1.1
 1. refactor: 合并upload与shipments页面，导入CSV后自动加载物流数据
 2. refactor: 新增运营报告页面(/page/analysis_report)，解耦AI分析与三维图表
 3. refactor: analyze页面改用/chart_data API，不再调用AI
