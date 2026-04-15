@@ -1,4 +1,8 @@
 ## py-agent搭建Log
+### v0.3
+1. refactor: 新增运营报告页面(/page/analysis_report)，解耦AI分析与三维图表
+2. refactor: analyze页面改用/chart_data API，不再调用AI
+
 # v1.0.0
 1.feat: 答辩前发布1.0.0版本
 
