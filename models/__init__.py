@@ -2,6 +2,7 @@
 import json
 import os
 import hashlib
+import contextlib
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -64,6 +65,15 @@ class LogisticsDataManager:
             cursorclass=pymysql.cursors.DictCursor,
             autocommit=False,
         )
+
+    @contextlib.contextmanager
+    def get_connection(self, with_db: bool = True):
+        """数据库连接上下文管理器"""
+        conn = self._get_connection(with_db)
+        try:
+            yield conn
+        finally:
+            conn.close()
 
     def _ensure_database(self):
         conn = pymysql.connect(
@@ -189,8 +199,7 @@ class LogisticsDataManager:
 
     def verify_user(self, username: str, password: str) -> Tuple[bool, Optional[Dict]]:
         """验证用户登录，返回 (成功标志, 用户信息)"""
-        conn = self._get_connection()
-        try:
+        with self.get_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute(
                     "SELECT id, username, role FROM users WHERE username = %s AND password = %s",
@@ -200,102 +209,82 @@ class LogisticsDataManager:
                 if user:
                     return True, user
                 return False, None
-        finally:
-            conn.close()
 
     def create_user(self, username: str, password: str, role: str = "user") -> Tuple[bool, str]:
         """创建新用户"""
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        try:
-            # 检查用户名是否已存在
-            cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
-            if cursor.fetchone():
-                return False, "用户名已存在"
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                try:
+                    # 检查用户名是否已存在
+                    cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
+                    if cursor.fetchone():
+                        return False, "用户名已存在"
 
-            # 创建用户
-            hashed_password = self._hash_password(password)
-            cursor.execute(
-                "INSERT INTO users (username, password, role) VALUES (%s, %s, %s)",
-                (username, hashed_password, role)
-            )
-            conn.commit()
-            return True, "用户创建成功"
-        except Exception as e:
-            conn.rollback()
-            return False, f"创建用户失败: {str(e)}"
-        finally:
-            cursor.close()
-            conn.close()
+                    # 创建用户
+                    hashed_password = self._hash_password(password)
+                    cursor.execute(
+                        "INSERT INTO users (username, password, role) VALUES (%s, %s, %s)",
+                        (username, hashed_password, role)
+                    )
+                    conn.commit()
+                    return True, "用户创建成功"
+                except Exception as e:
+                    conn.rollback()
+                    return False, f"创建用户失败: {str(e)}"
 
     def get_all_users(self) -> List[Dict]:
         """获取所有用户（不含密码）"""
-        conn = self._get_connection()
-        try:
+        with self.get_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute("SELECT id, username, role, created_at FROM users ORDER BY created_at DESC")
                 return cursor.fetchall()
-        finally:
-            conn.close()
 
     def delete_user(self, user_id: int) -> Tuple[bool, str]:
         """删除用户"""
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        try:
-            cursor.execute("DELETE FROM users WHERE id = %s AND role != 'admin'", (user_id,))
-            if cursor.rowcount == 0:
-                return False, "无法删除管理员账号"
-            conn.commit()
-            return True, "用户已删除"
-        except Exception as e:
-            conn.rollback()
-            return False, f"删除失败: {str(e)}"
-        finally:
-            cursor.close()
-            conn.close()
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                try:
+                    cursor.execute("DELETE FROM users WHERE id = %s AND role != 'admin'", (user_id,))
+                    if cursor.rowcount == 0:
+                        return False, "无法删除管理员账号"
+                    conn.commit()
+                    return True, "用户已删除"
+                except Exception as e:
+                    conn.rollback()
+                    return False, f"删除失败: {str(e)}"
 
     def add_log(self, user_id: int, username: str, action: str, detail: str = "", ip_address: str = "") -> None:
         """添加操作日志"""
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        try:
-            cursor.execute(
-                "INSERT INTO operation_logs (user_id, username, action, detail, ip_address) VALUES (%s, %s, %s, %s, %s)",
-                (user_id, username, action, detail, ip_address)
-            )
-            conn.commit()
-        except Exception as e:
-            logger.error(f"添加日志失败: {e}")
-        finally:
-            cursor.close()
-            conn.close()
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                try:
+                    cursor.execute(
+                        "INSERT INTO operation_logs (user_id, username, action, detail, ip_address) VALUES (%s, %s, %s, %s, %s)",
+                        (user_id, username, action, detail, ip_address)
+                    )
+                    conn.commit()
+                except Exception as e:
+                    logger.error(f"添加日志失败: {e}")
 
     def get_all_logs(self, limit: int = 100) -> List[Dict]:
         """获取所有操作日志"""
-        conn = self._get_connection()
-        try:
+        with self.get_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute(
                     "SELECT id, user_id, username, action, detail, ip_address, timestamp FROM operation_logs ORDER BY timestamp DESC LIMIT %s",
                     (limit,)
                 )
                 return cursor.fetchall()
-        finally:
-            conn.close()
 
     def get_user_logs(self, user_id: int, limit: int = 50) -> List[Dict]:
         """获取指定用户的操作日志"""
-        conn = self._get_connection()
-        try:
+        with self.get_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute(
                     "SELECT id, user_id, username, action, detail, ip_address, timestamp FROM operation_logs WHERE user_id = %s ORDER BY timestamp DESC LIMIT %s",
                     (user_id, limit)
                 )
                 return cursor.fetchall()
-        finally:
-            conn.close()
 
     def import_from_csv(self, file_path: str) -> Dict[str, Any]:
         try:
@@ -367,19 +356,17 @@ class LogisticsDataManager:
 
     def clear_all_data(self) -> None:
         """清空所有数据（一次性 Agent 覆盖导入场景）"""
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        try:
-            # 先清空事件表，再清空主表
-            cursor.execute('DELETE FROM shipment_events')
-            cursor.execute('DELETE FROM shipments')
-            conn.commit()
-        except Exception as e:
-            logger.error(f"清空数据失败: {e}")
-            conn.rollback()
-            raise
-        finally:
-            conn.close()
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                try:
+                    # 先清空事件表，再清空主表
+                    cursor.execute('DELETE FROM shipment_events')
+                    cursor.execute('DELETE FROM shipments')
+                    conn.commit()
+                except Exception as e:
+                    logger.error(f"清空数据失败: {e}")
+                    conn.rollback()
+                    raise
 
     def import_from_csv_bytes(self, file_bytes: bytes) -> Dict[str, Any]:
         """从内存字节流导入CSV数据（无需落盘）"""
@@ -453,75 +440,70 @@ class LogisticsDataManager:
 
     def bulk_insert_shipments(self, shipments: List[Dict]):
         """批量插入物流数据"""
-        conn = self._get_connection()
-        cursor = conn.cursor()
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                try:
+                    for shipment in shipments:
+                        cursor.execute(
+                            """
+                            INSERT INTO shipments
+                            (id, origin, destination, origin_city, destination_city, status, estimated_delivery, actual_delivery,
+                             weight, dimensions, customer_id, courier_company, courier, package_type, priority,
+                             customer_type, payment_method, shipping_fee, created_at)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            ON DUPLICATE KEY UPDATE
+                                origin=VALUES(origin),
+                                destination=VALUES(destination),
+                                origin_city=VALUES(origin_city),
+                                destination_city=VALUES(destination_city),
+                                status=VALUES(status),
+                                estimated_delivery=VALUES(estimated_delivery),
+                                actual_delivery=VALUES(actual_delivery),
+                                weight=VALUES(weight),
+                                dimensions=VALUES(dimensions),
+                                customer_id=VALUES(customer_id),
+                                courier_company=VALUES(courier_company),
+                                courier=VALUES(courier),
+                                package_type=VALUES(package_type),
+                                priority=VALUES(priority),
+                                customer_type=VALUES(customer_type),
+                                payment_method=VALUES(payment_method),
+                                shipping_fee=VALUES(shipping_fee),
+                                created_at=VALUES(created_at)
+                            """,
+                            (
+                                shipment.get('id'),
+                                shipment.get('origin'),
+                                shipment.get('destination'),
+                                shipment.get('origin_city'),
+                                shipment.get('destination_city'),
+                                shipment.get('status'),
+                                shipment.get('estimated_delivery'),
+                                shipment.get('actual_delivery'),
+                                shipment.get('weight'),
+                                json.dumps(shipment.get('dimensions', {})),
+                                shipment.get('customer_id'),
+                                shipment.get('courier_company'),
+                                shipment.get('courier'),
+                                shipment.get('package_type'),
+                                shipment.get('priority'),
+                                shipment.get('customer_type'),
+                                shipment.get('payment_method'),
+                                shipment.get('shipping_fee'),
+                                shipment.get('created_at'),
+                            ),
+                        )
 
-        try:
-            for shipment in shipments:
-                cursor.execute(
-                    """
-                    INSERT INTO shipments
-                    (id, origin, destination, origin_city, destination_city, status, estimated_delivery, actual_delivery,
-                     weight, dimensions, customer_id, courier_company, courier, package_type, priority,
-                     customer_type, payment_method, shipping_fee, created_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    ON DUPLICATE KEY UPDATE
-                        origin=VALUES(origin),
-                        destination=VALUES(destination),
-                        origin_city=VALUES(origin_city),
-                        destination_city=VALUES(destination_city),
-                        status=VALUES(status),
-                        estimated_delivery=VALUES(estimated_delivery),
-                        actual_delivery=VALUES(actual_delivery),
-                        weight=VALUES(weight),
-                        dimensions=VALUES(dimensions),
-                        customer_id=VALUES(customer_id),
-                        courier_company=VALUES(courier_company),
-                        courier=VALUES(courier),
-                        package_type=VALUES(package_type),
-                        priority=VALUES(priority),
-                        customer_type=VALUES(customer_type),
-                        payment_method=VALUES(payment_method),
-                        shipping_fee=VALUES(shipping_fee),
-                        created_at=VALUES(created_at)
-                    """,
-                    (
-                        shipment.get('id'),
-                        shipment.get('origin'),
-                        shipment.get('destination'),
-                        shipment.get('origin_city'),
-                        shipment.get('destination_city'),
-                        shipment.get('status'),
-                        shipment.get('estimated_delivery'),
-                        shipment.get('actual_delivery'),
-                        shipment.get('weight'),
-                        json.dumps(shipment.get('dimensions', {})),
-                        shipment.get('customer_id'),
-                        shipment.get('courier_company'),
-                        shipment.get('courier'),
-                        shipment.get('package_type'),
-                        shipment.get('priority'),
-                        shipment.get('customer_type'),
-                        shipment.get('payment_method'),
-                        shipment.get('shipping_fee'),
-                        shipment.get('created_at'),
-                    ),
-                )
+                    conn.commit()
+                    logger.info(f"成功插入 {len(shipments)} 条物流数据")
 
-            conn.commit()
-            logger.info(f"成功插入 {len(shipments)} 条物流数据")
-
-        except Exception as e:
-            logger.error(f"插入数据时出错: {e}")
-            conn.rollback()
-
-        finally:
-            conn.close()
+                except Exception as e:
+                    logger.error(f"插入数据时出错: {e}")
+                    conn.rollback()
 
     def get_shipment_by_id(self, shipment_id: str) -> Optional[Dict]:
         """根据ID获取物流信息"""
-        conn = self._get_connection()
-        try:
+        with self.get_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute('SELECT * FROM shipments WHERE id = %s', (shipment_id,))
                 row = cursor.fetchone()
@@ -529,13 +511,10 @@ class LogisticsDataManager:
                     row['dimensions'] = json.loads(row.get('dimensions') or '{}')
                     return row
                 return None
-        finally:
-            conn.close()
 
     def get_all_shipments(self, limit: int = 10000, page: int = None, pageSize: int = None) -> List[Dict]:
         """获取所有物流信息，支持分页"""
-        conn = self._get_connection()
-        try:
+        with self.get_connection() as conn:
             with conn.cursor() as cursor:
                 # 获取总记录数
                 cursor.execute('SELECT COUNT(*) as total FROM shipments')
@@ -559,24 +538,18 @@ class LogisticsDataManager:
                     row['dimensions'] = json.loads(row.get('dimensions') or '{}')
                     result.append(row)
                 return result, total
-        finally:
-            conn.close()
 
     def get_shipment_events(self, shipment_id: str) -> List[Dict]:
         """获取物流事件历史"""
-        conn = self._get_connection()
-        try:
+        with self.get_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute('SELECT * FROM shipment_events WHERE shipment_id = %s ORDER BY timestamp', (shipment_id,))
                 rows = cursor.fetchall()
                 return rows
-        finally:
-            conn.close()
 
     def get_daily_stats(self, date: str = None) -> Dict[str, Any]:
         """获取每日统计信息，如果没有指定日期，则获取所有日期的累计统计"""
-        conn = self._get_connection()
-        try:
+        with self.get_connection() as conn:
             with conn.cursor() as cursor:
                 if date:
                     # 如果有指定日期，获取该日期的数据
@@ -600,21 +573,18 @@ class LogisticsDataManager:
                         ("delivered",),
                     )
                     delayed = cursor.fetchone()["c"]
-        finally:
-            conn.close()
 
-        return {
-            "date": date if date else "all",
-            "total_shipments": total_shipments,
-            "delivered": delivered,
-            "delayed": delayed,
-            "on_time_rate": (delivered - delayed) / delivered * 100 if delivered > 0 else 0
-        }
+                return {
+                    "date": date if date else "all",
+                    "total_shipments": total_shipments,
+                    "delivered": delivered,
+                    "delayed": delayed,
+                    "on_time_rate": (delivered - delayed) / delivered * 100 if delivered > 0 else 0
+                }
 
     def get_daily_trend(self) -> Dict[str, List[Dict]]:
         """获取每日趋势数据"""
-        conn = self._get_connection()
-        try:
+        with self.get_connection() as conn:
             with conn.cursor() as cursor:
                 # 获取按日期分组的发货量
                 cursor.execute('''
@@ -624,7 +594,7 @@ class LogisticsDataManager:
                     ORDER BY date
                 ''')
                 daily_shipments = cursor.fetchall()
-                
+
                 # 获取按日期分组的交付量
                 cursor.execute('''
                     SELECT DATE(actual_delivery) AS date, COUNT(*) AS delivered
@@ -634,7 +604,7 @@ class LogisticsDataManager:
                     ORDER BY date
                 ''')
                 daily_delivered = cursor.fetchall()
-                
+
                 # 获取按日期分组的运输中量
                 cursor.execute('''
                     SELECT DATE(created_at) AS date, COUNT(*) AS in_transit
@@ -644,14 +614,12 @@ class LogisticsDataManager:
                     ORDER BY date
                 ''')
                 daily_in_transit = cursor.fetchall()
-        finally:
-            conn.close()
-        
-        return {
-            "shipments": daily_shipments,
-            "delivered": daily_delivered,
-            "in_transit": daily_in_transit
-        }
+
+                return {
+                    "shipments": daily_shipments,
+                    "delivered": daily_delivered,
+                    "in_transit": daily_in_transit
+                }
 
 
 class MiniMaxModelHandler:

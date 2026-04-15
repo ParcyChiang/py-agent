@@ -6,6 +6,7 @@
 4. refactor: `models/__init__.py` 和 `app.py` 从 `constants.py` 导入 `STATUS_CN_MAP`
 5. refactor: 简化 `_parse_date_str` 函数逻辑
 6. refactor: 提取 `configure_matplotlib` 到 `utils/__init__.py`，统一 matplotlib 中文字体配置
+7. refactor: 引入 `get_connection` 上下文管理器，简化约14个方法的数据库连接管理
 
 ### v1.4
 1. fix: code_generator沙箱环境修复,代码生成与图像生成
