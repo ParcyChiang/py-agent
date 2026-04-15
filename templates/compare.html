@@ -120,24 +120,6 @@
         .dropdown-item:hover {
             background: rgba(100, 130, 200, 0.3);
         }
-        #loadComparisonBtn {
-            background: linear-gradient(135deg, rgba(30, 144, 255, 0.8), rgba(20, 100, 200, 0.8));
-            color: white;
-            border: 1px solid rgba(100, 170, 255, 0.5);
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            height: 40px;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(30, 144, 255, 0.3);
-        }
-        #loadComparisonBtn:hover {
-            background: linear-gradient(135deg, rgba(40, 160, 255, 0.9), rgba(30, 120, 220, 0.9));
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(30, 144, 255, 0.4);
-        }
         .address-group {
             background: rgba(20, 25, 45, 0.85);
             backdrop-filter: blur(20px);
@@ -454,9 +436,8 @@
                         <option value="100">100</option>
                     </select>
                 </div>
-                <button id="loadComparisonBtn">加载对比数据</button>
             </div>
-            <div id="comparisonResult">点击"加载对比数据"获取对比结果</div>
+            <div id="comparisonResult"></div>
             <div class="pagination-container" id="pagination"></div>
         </div>
     </div>
@@ -522,6 +503,9 @@
                 input.val(value).focus();
                 input.siblings('.clear-btn').addClass('show');
                 $(this).parent().removeClass('show');
+                // 选中后自动触发搜索
+                currentPage = 1;
+                loadComparisonData(currentPage);
             });
 
             // 输入框事件 - 显示匹配的下拉菜单
@@ -579,6 +563,9 @@
                 var targetId = $(this).data('target');
                 $('#' + targetId).val('').focus();
                 $(this).removeClass('show');
+                // 清除后自动触发搜索
+                currentPage = 1;
+                loadComparisonData(currentPage);
             });
 
             // 点击外部关闭下拉菜单
@@ -728,10 +715,33 @@
             }
 
             // 加载对比数据按钮点击事件
-            $('#loadComparisonBtn').on('click', function() {
+            // 自动加载数据（去掉按钮，改为实时搜索）
+
+            // 筛选变化时自动加载
+            $('#originFilter, #destinationFilter, #courierFilter').on('input', function() {
+                clearTimeout(window.filterTimeout);
+                window.filterTimeout = setTimeout(function() {
+                    currentPage = 1;
+                    loadComparisonData(currentPage);
+                }, 300);
+            });
+
+            // 快递公司下拉选择时自动加载
+            $('#courierFilter').on('change', function() {
                 currentPage = 1;
                 loadComparisonData(currentPage);
             });
+
+            // 每页数量变化时自动加载
+            $('#pageSize').on('change', function() {
+                pageSize = $(this).val();
+                currentPage = 1;
+                loadComparisonData(currentPage);
+            });
+
+            // 页面加载时自动加载数据
+            currentPage = 1;
+            loadComparisonData(currentPage);
 
             // 分页按钮点击事件
             $(document).on('click', '.pagination a', function(e) {
