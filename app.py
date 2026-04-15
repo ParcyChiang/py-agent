@@ -279,6 +279,46 @@ def delete_csv():
         return jsonify({'success': False, 'message': f'清空失败: {str(e)}'})
 
 
+@app.route('/chart_data', methods=['GET'])
+def get_chart_data():
+    """获取图表数据（不调用AI）"""
+    try:
+        # 获取所有物流数据
+        shipments = data_manager.get_all_shipments(limit=10000)
+
+        if not shipments:
+            return jsonify({'success': False, 'message': '没有可分析的数据，请先上传CSV文件'})
+
+        # 获取每日统计
+        daily_stats = data_manager.get_daily_stats()
+        # 获取每日趋势数据
+        daily_trend = data_manager.get_daily_trend()
+
+        # 生成图表数据
+        chart_data = _generate_chart_data(shipments, daily_stats)
+
+        # 准备响应数据
+        response_data = {
+            'success': True,
+            'statistics': {
+                **daily_stats,
+                'surface_3d': chart_data['surface_3d'],
+                'scatter_3d': chart_data['scatter_3d'],
+                'wireframe_3d': chart_data['wireframe_3d'],
+                'data_info': chart_data['data_info'],
+                'daily_trend': daily_trend
+            },
+            'summary': {
+                'total_records': len(shipments),
+                'status_distribution': model_handler._get_status_distribution(shipments)
+            }
+        }
+
+        return jsonify(response_data)
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'获取数据失败: {str(e)}'})
+
 
 @app.route('/analyze', methods=['GET'])
 def analyze_data():

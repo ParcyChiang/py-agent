@@ -193,7 +193,7 @@
 
             $('#analyzeBtn').on('click', function() {
                 $('#statsContent').html('加载中...');
-                $.getJSON('/analyze', function(response) {
+                $.getJSON('/chart_data', function(response) {
                     if (response.success) {
                         const statsHtml = '<p>总发货量: '+response.statistics.total_shipments+'</p>'+
                             '<h4>状态分布:</h4>'+
