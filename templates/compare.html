@@ -11,6 +11,13 @@
     <style>
         .comparison-section {
             margin-top: 20px;
+            background: rgba(20, 25, 45, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(100, 130, 200, 0.25);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            padding: 24px;
         }
         .filter-controls {
             display: flex;
@@ -27,19 +34,29 @@
         .form-group label {
             font-size: 14px;
             font-weight: 600;
-            color: #333;
+            color: rgba(255, 255, 255, 0.9);
         }
         .form-control {
-            padding: 8px 12px;
-            border: 1px solid #e0e0e0;
-            border-radius: 4px;
+            padding: 10px 14px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(100, 130, 200, 0.3);
+            border-radius: 8px;
             font-size: 14px;
             width: 200px;
+            color: rgba(255, 255, 255, 0.95);
+            transition: all 0.3s ease;
         }
         .form-control:focus {
             outline: none;
-            border-color: #1e90ff;
-            box-shadow: 0 0 0 2px rgba(30, 144, 255, 0.2);
+            border-color: rgba(14, 165, 233, 0.6);
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15), inset 0 2px 5px rgba(0, 0, 0, 0.1);
+            background: rgba(255, 255, 255, 0.15);
+        }
+        .form-control option {
+            background: rgba(20, 25, 45, 0.95);
+            color: white;
         }
         .custom-select {
             position: relative;
@@ -56,10 +73,12 @@
             top: 100%;
             left: 0;
             right: 0;
-            background-color: white;
-            border: 1px solid #e0e0e0;
-            border-radius: 4px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            background: rgba(20, 25, 45, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(100, 130, 200, 0.3);
+            border-radius: 8px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
             max-height: 200px;
             overflow-y: auto;
             z-index: 1000;
@@ -69,35 +88,54 @@
             display: block;
         }
         .dropdown-item {
-            padding: 8px 12px;
+            padding: 10px 14px;
             cursor: pointer;
+            color: rgba(255, 255, 255, 0.9);
+            transition: background 0.2s ease;
         }
         .dropdown-item:hover {
-            background-color: #f0f0f0;
+            background: rgba(100, 130, 200, 0.3);
         }
         #loadComparisonBtn {
-            background-color: #1e90ff;
+            background: linear-gradient(135deg, rgba(30, 144, 255, 0.8), rgba(20, 100, 200, 0.8));
             color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
+            border: 1px solid rgba(100, 170, 255, 0.5);
+            padding: 10px 20px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 14px;
-            height: 36px;
+            font-weight: 600;
+            height: 40px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(30, 144, 255, 0.3);
         }
         #loadComparisonBtn:hover {
-            background-color: #187bcd;
+            background: linear-gradient(135deg, rgba(40, 160, 255, 0.9), rgba(30, 120, 220, 0.9));
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(30, 144, 255, 0.4);
         }
         .address-group {
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 15px;
+            background: rgba(20, 25, 45, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(100, 130, 200, 0.25);
+            border-radius: 12px;
+            padding: 20px;
             margin-bottom: 20px;
-            background-color: #f9f9f9;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+        .address-group:hover {
+            border-color: rgba(120, 160, 230, 0.4);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
         }
         .address-group h3 {
             margin-top: 0;
-            color: #333;
+            color: white;
+            font-size: 18px;
+            border-bottom: 1px solid rgba(100, 130, 200, 0.2);
+            padding-bottom: 12px;
+            margin-bottom: 16px;
         }
         .group-info {
             display: flex;
@@ -108,64 +146,118 @@
         .info-item {
             flex: 1;
             min-width: 150px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(100, 130, 200, 0.15);
         }
         .info-item strong {
             display: block;
-            font-size: 14px;
-            color: #666;
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.6);
             margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         .info-item span {
-            font-size: 16px;
-            font-weight: 600;
-            color: #333;
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+        }
+        .address-group h4 {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 15px;
+            margin: 16px 0 10px;
+        }
+        .status-distribution, .courier-distribution {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .status-distribution span, .courier-distribution span {
+            background: rgba(100, 130, 200, 0.2);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(100, 130, 200, 0.3);
         }
         .shipments-table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            overflow: hidden;
         }
         .shipments-table th,
         .shipments-table td {
-            border: 1px solid #e0e0e0;
-            padding: 8px;
+            padding: 12px 10px;
             text-align: left;
+            border-bottom: 1px solid rgba(100, 130, 200, 0.15);
+            color: rgba(255, 255, 255, 0.9);
         }
         .shipments-table th {
-            background-color: #f0f0f0;
+            background: rgba(100, 130, 200, 0.15);
             font-weight: 600;
+            color: rgba(255, 255, 255, 1);
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .shipments-table tr:hover td {
+            background: rgba(100, 130, 200, 0.1);
         }
         .analyze-btn {
-            background-color: #4CAF50;
+            background: linear-gradient(135deg, rgba(76, 175, 80, 0.8), rgba(50, 150, 70, 0.8));
             color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
+            border: 1px solid rgba(120, 220, 150, 0.5);
+            padding: 10px 20px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 14px;
-            margin-top: 10px;
+            font-weight: 600;
+            margin-top: 15px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
         }
         .analyze-btn:hover {
-            background-color: #45a049;
+            background: linear-gradient(135deg, rgba(85, 190, 90, 0.9), rgba(60, 165, 80, 0.9));
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
         }
         .analysis-result {
             margin-top: 15px;
-            padding: 15px;
-            background-color: #f0f8ff;
-            border-radius: 4px;
-            border-left: 4px solid #1e90ff;
+            padding: 16px;
+            background: rgba(14, 165, 233, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 8px;
+            border-left: 4px solid rgba(14, 165, 233, 0.8);
+            border: 1px solid rgba(14, 165, 233, 0.3);
         }
         .analysis-result h4 {
             margin-top: 0;
-            color: #1e90ff;
+            color: rgba(14, 165, 233, 1);
+            font-size: 15px;
+        }
+        .analysis-result pre {
+            color: rgba(255, 255, 255, 0.9);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+            margin: 10px 0 0;
         }
         .loading {
             display: inline-block;
             width: 20px;
             height: 20px;
-            border: 3px solid rgba(0,0,0,.3);
+            border: 3px solid rgba(255, 255, 255, 0.3);
             border-radius: 50%;
-            border-top-color: #000;
+            border-top-color: #fff;
             animation: spin 1s ease-in-out infinite;
         }
         @keyframes spin {
@@ -181,34 +273,55 @@
             list-style: none;
             padding: 0;
             margin: 0;
+            gap: 8px;
         }
         .pagination li {
-            margin: 0 5px;
+            margin: 0;
         }
         .pagination a {
             display: block;
-            padding: 8px 12px;
-            border: 1px solid #e0e0e0;
-            border-radius: 4px;
+            padding: 10px 14px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(100, 130, 200, 0.3);
+            border-radius: 8px;
             text-decoration: none;
-            color: #333;
+            color: rgba(255, 255, 255, 0.9);
             cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
         }
         .pagination a:hover {
-            background-color: #f0f0f0;
+            background: rgba(100, 130, 200, 0.3);
+            border-color: rgba(120, 160, 230, 0.5);
+            transform: translateY(-2px);
         }
         .pagination .active a {
-            background-color: #1e90ff;
+            background: linear-gradient(135deg, rgba(30, 144, 255, 0.9), rgba(20, 100, 200, 0.9));
             color: white;
-            border-color: #1e90ff;
+            border-color: rgba(100, 170, 255, 0.6);
+            box-shadow: 0 4px 15px rgba(30, 144, 255, 0.4);
         }
         .pagination .disabled a {
-            color: #999;
+            color: rgba(255, 255, 255, 0.4);
             cursor: not-allowed;
-            border-color: #e0e0e0;
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(100, 130, 200, 0.15);
         }
         .pagination .disabled a:hover {
-            background-color: white;
+            background: rgba(255, 255, 255, 0.05);
+            transform: none;
+        }
+        #comparisonResult {
+            color: rgba(255, 255, 255, 0.7);
+            text-align: center;
+            padding: 40px 20px;
+            font-size: 15px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            border: 1px dashed rgba(100, 130, 200, 0.3);
+            margin: 10px 0;
         }
     </style>
 </head>

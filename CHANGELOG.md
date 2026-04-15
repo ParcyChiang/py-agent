@@ -1,4 +1,7 @@
 ## py-agent搭建Log
+### v1.3
+1. feat: compare适配毛玻璃效果
+
 ### v1.2
 1. feat: upload页面新增分页器，默认每页10条数据
 2. refactor: 合并upload与shipments页面，导入CSV后自动加载物流数据
