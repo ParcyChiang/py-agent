@@ -1,9 +1,14 @@
 ## py-agent搭建Log
+### v1.2
+1. refactor: 合并upload与shipments页面，导入CSV后自动加载物流数据
+2. refactor: 新增运营报告页面(/page/analysis_report)，解耦AI分析与三维图表
+3. refactor: analyze页面改用/chart_data API，不再调用AI
+
 ### v1.1
 1. refactor: 新增运营报告页面(/page/analysis_report)，解耦AI分析与三维图表
 2. refactor: analyze页面改用/chart_data API，不再调用AI
 
-# v1.0.0
+### v1.0.0
 1.feat: 答辩前发布1.0.0版本
 
 ### v0.2.3

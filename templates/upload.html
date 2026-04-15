@@ -34,44 +34,87 @@
             <a class="secondary" href="/page/compare">物流对比</a>
         </nav>
 
-        <div class="upload-section">
-            <form id="uploadForm" enctype="multipart/form-data">
-                <div class="file-input">
-                    <input type="file" id="file" name="file" accept=".csv" required>
-                    <label for="file">选择CSV文件</label>
-                </div>
-                <button type="submit">上传并导入数据</button>
-            </form>
-            <div style="margin-top:12px;">
-                <button id="deleteCsvBtn" class="secondary">删除CSV数据</button>
+        <div class="import-section" style="display:flex;justify-content:flex-end;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+            <div class="file-input" style="display:none;">
+                <input type="file" id="file" name="file" accept=".csv" required>
             </div>
-            <div id="uploadResult"></div>
+            <div style="display:flex;gap:12px;">
+                <button type="button" id="uploadBtn" style="padding:8px 16px;background:rgba(60,140,100,0.8);color:#fff;border-radius:4px;border:1px solid rgba(100,220,150,0.4);font-size:14px;font-weight:500;cursor:pointer;transition:all 0.3s ease;">上传并导入数据</button>
+                <button type="button" id="deleteCsvBtn" style="padding:8px 16px;background:rgba(200,60,60,0.8);color:#fff;border-radius:4px;border:1px solid rgba(255,100,100,0.4);font-size:14px;font-weight:500;cursor:pointer;transition:all 0.3s ease;">删除CSV数据</button>
+            </div>
         </div>
+
+        <div id="uploadResult" style="margin-top:12px;color:#fff;"></div>
+
+        <div id="shipmentsTip" style="margin-top:12px;color:#fff;"></div>
+        <div id="shipmentsList" style="margin-top:16px;"></div>
     </div>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
+        function loadShipments() {
+            $('#shipmentsTip').html('加载中...');
+            $('#shipmentsList').html('');
+            $.getJSON('/shipments?limit=50', function(response) {
+                if (response.success && response.data.length > 0) {
+                    var html = '<table><tr><th>ID</th><th>起始地</th><th>目的地</th><th>状态</th><th>重量 (kg)</th></tr>';
+                    response.data.forEach(function(shipment){
+                        html += '<tr>'+
+                            '<td>'+shipment.id+'</td>'+
+                            '<td>'+shipment.origin+'</td>'+
+                            '<td>'+shipment.destination+'</td>'+
+                            '<td>'+shipment.status+'</td>'+
+                            '<td>'+shipment.weight+'</td>'+
+                        '</tr>';
+                    });
+                    html += '</table>';
+                    $('#shipmentsList').html(html);
+                    $('#shipmentsTip').html('');
+                } else {
+                    $('#shipmentsTip').html('<div style="padding:10px;background:rgba(255,255,255,0.1);border-radius:4px;">暂无数据，请上传CSV文件</div>');
+                    $('#shipmentsList').html('');
+                }
+            }).fail(function(){
+                $('#shipmentsTip').html('<div style="padding:10px;background:rgba(255,100,100,0.2);border-radius:4px;">加载失败，请重试</div>');
+                $('#shipmentsList').html('');
+            });
+        }
+
         $(function(){
-            $('#uploadForm').on('submit', function(e) {
-                e.preventDefault();
-                var formData = new FormData(this);
-                $.ajax({
-                    url: '/upload',
-                    type: 'POST',
-                    data: formData,
-                    processData: false,
-                    contentType: false,
-                    success: function(response) {
-                        if (response.success) {
-                            $('#uploadResult').html('<div class="success">'+response.message+'</div><p>导入记录数: '+response.count+'</p>');
-                        } else {
-                            $('#uploadResult').html('<div class="error">'+response.message+'</div>');
+            // 页面加载时自动检查并展示数据
+            loadShipments();
+
+            // 点击上传按钮触发文件选择
+            $('#uploadBtn').on('click', function(){
+                $('#file').click();
+            });
+
+            // 文件选择后自动上传
+            $('#file').on('change', function(){
+                var fileName = $(this).val().split('\\').pop();
+                if (fileName) {
+                    $('#uploadResult').html('<div class="success">已选择文件: ' + fileName + '，正在上传...</div>');
+                    var formData = new FormData();
+                    formData.append('file', this.files[0]);
+                    $.ajax({
+                        url: '/upload',
+                        type: 'POST',
+                        data: formData,
+                        processData: false,
+                        contentType: false,
+                        success: function(response) {
+                            if (response.success) {
+                                $('#uploadResult').html('<div class="success">'+response.message+'</div><p>导入记录数: '+response.count+'</p>');
+                                loadShipments();
+                            } else {
+                                $('#uploadResult').html('<div class="error">'+response.message+'</div>');
+                            }
+                        },
+                        error: function() {
+                            $('#uploadResult').html('<div class="error">上传失败，请重试</div>');
                         }
-                    },
-                    error: function() {
-                        $('#uploadResult').html('<div class="error">上传失败，请重试</div>');
-                    }
-                });
+                    });
+                }
             });
 
             $('#deleteCsvBtn').on('click', function(){
@@ -82,6 +125,8 @@
                     success: function(response){
                         if(response.success){
                             $('#uploadResult').html('<div class="success">'+response.message+'</div>');
+                            $('#shipmentsTip').html('<div style="padding:10px;background:rgba(255,255,255,0.1);border-radius:4px;">暂无数据，请上传CSV文件</div>');
+                            $('#shipmentsList').html('');
                         } else {
                             $('#uploadResult').html('<div class="error">'+response.message+'</div>');
                         }

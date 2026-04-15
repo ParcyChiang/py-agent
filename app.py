@@ -200,17 +200,9 @@ def page_upload():
 def page_analyze():
     return render_template('analyze.html')
 
-@app.route('/page/shipments')
-def page_shipments():
-    return render_template('shipments.html')
-
 @app.route('/page/report')
 def page_report():
     return render_template('report.html')
-
-@app.route('/page/dashboard')
-def page_dashboard():
-    return render_template('dashboard.html')
 
 @app.route('/page/code_generator')
 def page_code_generator():
