@@ -5,6 +5,16 @@ import markdown
 import pandas as pd
 
 
+def configure_matplotlib():
+    """配置 matplotlib 中文字体和负号显示"""
+    import matplotlib.pyplot as plt
+    plt.rcParams['font.sans-serif'] = [
+        'Arial Unicode MS', 'SimHei', 'Hiragino Sans GB', 'Heiti SC',
+        'STHeiti', 'WenQuanYi Micro Hei', 'Noto Sans CJK SC', 'DejaVu Sans'
+    ]
+    plt.rcParams['axes.unicode_minus'] = False
+
+
 def safe_float(value: Any, default: float = 0.0) -> float:
     """安全地将值转换为 float"""
     try:

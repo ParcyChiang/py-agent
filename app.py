@@ -13,7 +13,7 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for, s
 
 # 直接从models模块导入创建函数和类
 from models import create_data_manager, create_model_handler
-from utils import format_ai_response
+from utils import format_ai_response, configure_matplotlib
 from constants import STATUS_CN_MAP
 from collections import Counter, defaultdict
 from datetime import datetime, date, timedelta
@@ -467,11 +467,10 @@ def _generate_chart_data(shipments, daily_stats):
     from mpl_toolkits.mplot3d import Axes3D
     import base64
     import io
-    
+
     # 设置中文字体
-    plt.rcParams['font.sans-serif'] = ['Arial Unicode MS', 'SimHei', 'DejaVu Sans']
-    plt.rcParams['axes.unicode_minus'] = False
-    
+    configure_matplotlib()
+
     # 调试信息
     print(f"收到 {len(shipments)} 条物流数据")
     if shipments:
@@ -905,8 +904,7 @@ def execute_code():
             import io
 
             # 配置 matplotlib 中文字体
-            plt.rcParams['font.sans-serif'] = ['Arial Unicode MS', 'SimHei', 'Hiragino Sans GB', 'Heiti SC', 'STHeiti', 'WenQuanYi Micro Hei', 'Noto Sans CJK SC', 'DejaVu Sans']
-            plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
+            configure_matplotlib()
 
             safe_globals = {
                 '__builtins__': safe_builtins,
