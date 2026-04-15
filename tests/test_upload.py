@@ -22,5 +22,5 @@ def upload_csv_file(file_path):
         traceback.print_exc()
 
 if __name__ == "__main__":
-    csv_path = "/Users/rubyjiang/py-agent/csv_gen/logistics_sample_100.csv"
+    csv_path = "/Users/rubyjiang/py-agent/data/csv_gen/logistics_sample_100.csv"
     upload_csv_file(csv_path)

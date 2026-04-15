@@ -212,12 +212,11 @@ logistics.db
 
 # 确保 .html 文件不被忽略（但通常不需要特别设置，除非前面有规则忽略了它们）
 !*.html
-csv_gen/.DS_Store
+data/csv_gen/.DS_Store
 .DS_Store
-csv_gen/logistics_sample_100.csv
-csv_gen/logistics_sample_1000.csv
-csv_gen/logistics_sample_5000.csv
-csv_gen/logistics_sample_10000.csv
-/city_delivery_analysis.csv
+data/csv_gen/logistics_sample_100.csv
+data/csv_gen/logistics_sample_1000.csv
+data/csv_gen/logistics_sample_5000.csv
+data/csv_gen/logistics_sample_10000.csv
 /论文.md
 /论文写作规范.md

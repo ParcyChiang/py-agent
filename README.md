@@ -6,7 +6,7 @@
 - **数据上传**：支持上传 CSV 物流数据并入库分析
 - **可视化与报表**：在 `report`、`analyze` 页面查看统计与图表
 - **发运记录浏览**：`shipments` 页面分页查看与筛选
-- **示例数据生成**：`csv_gen/generate_logistics_data.py` 可批量生成样例 CSV
+- **示例数据生成**：`data/csv_gen/generate_logistics_data.py` 可批量生成样例 CSV
 
 ## 环境要求
 - Python 3.9+（建议 3.10/3.11）
@@ -56,8 +56,9 @@ py-agent/
 ├─ models/                    # 数据模型与数据库相关
 ├─ templates/                 # 前端模板 (Jinja2)
 ├─ static/                    # 静态资源
-├─ csv_gen/                   # 示例数据与生成脚本
-├─ code_gen/                  # Python 代码生成演示函数
+├─ data/                      # 数据目录
+│   ├─ csv_gen/               # 示例数据与生成脚本
+│   └─ code_gen/              # Python 代码生成演示函数
 ├─ logistics.db               # SQLite 数据库（开发环境）
 ├─ requirements.txt           # Python 依赖
 ├─ CHANGELOG.md
@@ -71,9 +72,9 @@ py-agent/
 ## 上传与示例数据
 - 通过脚本生成自定义规模数据：
   ```bash
-  python csv_gen/generate_logistics_data.py --rows 20000 --out my_logistics.csv
+  python data/csv_gen/generate_logistics_data.py --rows 20000 --out my_logistics.csv
   ```
-- 你可以在页面中上传 CSV 文件进行分析，或使用 `csv_gen` 目录下的样例：
+- 你可以在页面中上传 CSV 文件进行分析，或使用 `data/csv_gen` 目录下的样例：
   - `logistics_sample_100.csv`
   - `logistics_sample_1000.csv`
   - `logistics_sample_5000.csv`
