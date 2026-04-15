@@ -4,6 +4,7 @@
 2. refactor: 移除 `models/__init__.py` 中 `import_from_csv` 和 `import_from_csv_bytes` 方法内重复的函数定义
 3. refactor: 创建 `constants.py` 统一管理 `STATUS_CN_MAP` 常量
 4. refactor: `models/__init__.py` 和 `app.py` 从 `constants.py` 导入 `STATUS_CN_MAP`
+5. refactor: 简化 `_parse_date_str` 函数逻辑
 
 ### v1.4
 1. fix: code_generator沙箱环境修复,代码生成与图像生成

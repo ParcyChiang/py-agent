@@ -481,22 +481,21 @@ def _generate_chart_data(shipments, daily_stats):
     def _parse_date_str(date_value):
         if not date_value:
             return None
-        # 如果已经是日期或datetime对象，直接转换
         if isinstance(date_value, datetime):
             return date_value.date()
         if isinstance(date_value, date):
             return date_value
-        # 否则，尝试将字符串转换
+        s = str(date_value)
         try:
-            return datetime.fromisoformat(str(date_value).replace('Z', '+00:00')).date()
+            return datetime.fromisoformat(s.replace('Z', '+00:00')).date()
         except Exception:
+            pass
+        for fmt in ('%Y-%m-%d', '%Y-%m-%d %H:%M:%S'):
             try:
-                return datetime.strptime(str(date_value), '%Y-%m-%d').date()
+                return datetime.strptime(s, fmt).date()
             except Exception:
-                try:
-                    return datetime.strptime(str(date_value), '%Y-%m-%d %H:%M:%S').date()
-                except Exception:
-                    return None
+                pass
+        return None
 
     # 1. 准备曲面图数据：时间 x 城市 x 状态
     time_city_status_data = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
