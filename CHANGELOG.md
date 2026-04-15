@@ -1,4 +1,28 @@
 ## py-agent搭建Log
+### v1.8
+1. refactor: 将 `charts/`、`utils/`、`config.py`、`response.py`、`constants.py` 移动到 `internal/pkg/`
+2. refactor: 更新所有 internal 模块的 import 路径
+3. refactor: 更新 `.gitignore`，忽略 `docs/`、`data/csv_gen/*` 但保留 `generate_logistics_data.py`
+4. docs: 更新 `README.md` 目录结构，反映 internal/pkg/ 共享模块结构
+
+### v1.7
+1. perf: 三维图表添加数据采样，数据超过100条时随机采样到100条，避免渲染卡顿
+2. perf: 散点图改为按城市分组批量绘制，替代逐点绘制，大幅提升渲染性能
+3. fix: 移除 plt.tight_layout() 避免 Tight layout not applied 警告
+4. perf: 三维图表 DPI 从 150 降至 100，加快图像生成速度
+5. fix: 修复 /chart_data API 返回结构，添加 summary.status_distribution 以适配前端
+
+### v1.6
+1. refactor: 重构项目为 HTTP/Server/DAO 三层架构
+2. refactor: 创建 `internal/` 目录，组织 handler/server/models/middleware/router 层
+3. refactor: 创建 `internal/pkg/` 目录，存放共享模块 config/response/charts/utils/constants
+4. refactor: `app.py` 简化为 Flask 入口，路由注册移至 `internal/router/`
+5. refactor: DAO 层拆分至 `internal/models/shipment.py`, `user.py`, `log.py`
+6. refactor: Server 层创建 `internal/server/shipment.py`, `auth.py`, `analysis.py`, `dashboard.py`, `code_gen.py`
+7. refactor: Handler 层创建 `internal/handler/*.py` 处理 HTTP 请求
+8. refactor: 中间件移至 `internal/middleware/`，包含认证和日志
+9. refactor: 更新所有内部 import 路径
+
 ### v1.5
 1. refactor: 将 `safe_float`, `safe_str`, `safe_date` 从 `models/__init__.py` 提取到 `utils/__init__.py`
 2. refactor: 移除 `models/__init__.py` 中 `import_from_csv` 和 `import_from_csv_bytes` 方法内重复的函数定义

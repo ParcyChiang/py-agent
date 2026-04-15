@@ -1,1081 +1,131 @@
+"""Flask 应用入口"""
 import os
-import asyncio
-import uuid
-import atexit
-import signal
-import sys
-import io
-import types
-import builtins
-import contextlib
-import traceback
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session
+import logging
 
-# 直接从models模块导入创建函数和类
-from models import create_data_manager, create_model_handler
-from utils import format_ai_response, configure_matplotlib
-from constants import STATUS_CN_MAP
-from charts import generate_chart_data
-from collections import Counter, defaultdict
-from datetime import datetime, date, timedelta
+from flask import Flask
 
+from internal.pkg.config import Config
+from internal.middleware.logging import setup_logging
+from internal.router import register_routes
+
+# 设置日志
+setup_logging()
+logger = logging.getLogger("LogisticsAPI")
+
+# 创建 Flask 应用
 app = Flask(__name__)
-app.secret_key = os.getenv('SECRET_KEY', 'your-secret-key-change-in-production')
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB限制
-
-# 使用工厂函数创建实例
-data_manager = create_data_manager()
-model_handler = create_model_handler()
+app.secret_key = Config.SECRET_KEY
+app.config['MAX_CONTENT_LENGTH'] = Config.MAX_CONTENT_LENGTH
 
 
-@app.route('/')
-def index():
-    """主页面"""
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    return render_template('index.html')
+def init_database():
+    """初始化数据库（如果需要）"""
+    from internal.models.shipment import ShipmentDAO
+    import pymysql
+    import contextlib
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    """登录页面"""
-    if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '')
-
-        if not username or not password:
-            return render_template('login.html', error='请输入用户名和密码')
-
-        success, user = data_manager.verify_user(username, password)
-        if success:
-            session['user_id'] = user['id']
-            session['username'] = user['username']
-            session['role'] = user['role']
-            # 记录登录日志
-            data_manager.add_log(user['id'], user['username'], '登录', '用户登录系统', request.remote_addr)
-            return redirect(url_for('index'))
-        else:
-            return render_template('login.html', error='用户名或密码错误')
-
-    return render_template('login.html')
-
-@app.route('/logout')
-def logout():
-    """登出"""
-    if 'user_id' in session:
-        data_manager.add_log(session['user_id'], session['username'], '登出', '用户退出系统', request.remote_addr)
-    session.clear()
-    return redirect(url_for('login'))
-
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    """注册页面"""
-    if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '')
-        confirm_password = request.form.get('confirm_password', '')
-
-        if not username or not password:
-            return render_template('register.html', error='请输入用户名和密码')
-
-        if len(username) < 3:
-            return render_template('register.html', error='用户名至少3个字符')
-
-        if len(password) < 6:
-            return render_template('register.html', error='密码至少6个字符')
-
-        if password != confirm_password:
-            return render_template('register.html', error='两次密码输入不一致')
-
-        success, message = data_manager.create_user(username, password)
-        if success:
-            # 记录注册日志
-            data_manager.add_log(0, username, '注册', '用户注册新账号', request.remote_addr)
-            return redirect(url_for('login'))
-        else:
-            return render_template('register.html', error=message)
-
-    return render_template('register.html')
-
-@app.route('/api/login', methods=['POST'])
-def api_login():
-    """API登录接口"""
-    data = request.get_json()
-    username = data.get('username', '').strip()
-    password = data.get('password', '')
-
-    if not username or not password:
-        return jsonify({'success': False, 'message': '请输入用户名和密码'})
-
-    success, user = data_manager.verify_user(username, password)
-    if success:
-        session['user_id'] = user['id']
-        session['username'] = user['username']
-        session['role'] = user['role']
-        return jsonify({'success': True, 'message': '登录成功', 'username': user['username'], 'role': user['role']})
-    else:
-        return jsonify({'success': False, 'message': '用户名或密码错误'})
-
-@app.route('/api/logout', methods=['POST'])
-def api_logout():
-    """API登出接口"""
-    session.clear()
-    return jsonify({'success': True, 'message': '已登出'})
-
-@app.route('/api/current_user')
-def api_current_user():
-    """获取当前登录用户"""
-    if 'user_id' in session:
-        return jsonify({
-            'success': True,
-            'user': {
-                'id': session['user_id'],
-                'username': session['username'],
-                'role': session['role']
-            }
-        })
-    return jsonify({'success': False, 'message': '未登录'})
-
-@app.route('/api/logs')
-def api_get_logs():
-    """获取操作日志（仅管理员）"""
-    if 'user_id' not in session:
-        return jsonify({'success': False, 'message': '未登录'})
-    if session.get('role') != 'admin':
-        return jsonify({'success': False, 'message': '无权限'})
-
-    limit = request.args.get('limit', 100, type=int)
-    logs = data_manager.get_all_logs(limit)
-    return jsonify({'success': True, 'logs': logs})
-
-@app.route('/api/users')
-def api_get_users():
-    """获取用户列表（仅管理员）"""
-    if 'user_id' not in session:
-        return jsonify({'success': False, 'message': '未登录'})
-    if session.get('role') != 'admin':
-        return jsonify({'success': False, 'message': '无权限'})
-
-    users = data_manager.get_all_users()
-    return jsonify({'success': True, 'users': users})
-
-@app.route('/api/users/<int:user_id>', methods=['DELETE'])
-def api_delete_user(user_id):
-    """删除用户（仅管理员）"""
-    if 'user_id' not in session:
-        return jsonify({'success': False, 'message': '未登录'})
-    if session.get('role') != 'admin':
-        return jsonify({'success': False, 'message': '无权限'})
-
-    success, message = data_manager.delete_user(user_id)
-    if success:
-        # 记录删除用户日志
-        data_manager.add_log(
-            session['user_id'],
-            session['username'],
-            '删除用户',
-            f'删除了用户ID={user_id}',
-            request.remote_addr
-        )
-    return jsonify({'success': success, 'message': message})
-
-@app.route('/page/logs')
-def page_logs():
-    """日志页面（仅管理员）"""
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    if session.get('role') != 'admin':
-        return redirect(url_for('index'))
-    return render_template('logs.html')
-
-@app.route('/page/users')
-def page_users():
-    """用户管理页面（仅管理员）"""
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    if session.get('role') != 'admin':
-        return redirect(url_for('index'))
-    return render_template('users.html')
-
-@app.route('/page/upload')
-def page_upload():
-    return render_template('upload.html')
-
-@app.route('/page/analyze')
-def page_analyze():
-    return render_template('analyze.html')
-
-@app.route('/page/report')
-def page_report():
-    return render_template('report.html')
-
-@app.route('/page/code_generator')
-def page_code_generator():
-    return render_template('code_generator.html')
-
-@app.route('/page/new_dashboard')
-def page_new_dashboard():
-    return render_template('new_dashboard.html')
-
-@app.route('/page/compare')
-def page_compare():
-    return render_template('compare.html')
-
-@app.route('/page/analysis_report')
-def page_analysis_report():
-    return render_template('analysis_report.html')
-
-# @app.route('/page/admin_log')
-# def page_code_generator():
-#     return render_template('admin_log.html')
-
-@app.route('/upload', methods=['POST'])
-def upload_file():
-    """上传CSV文件"""
-    if 'file' not in request.files:
-        return jsonify({'success': False, 'message': '没有选择文件'})
-
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'success': False, 'message': '没有选择文件'})
-
-    if file and file.filename.lower().endswith('.csv'):
-        # 基于内存流导入，不落盘
-        file_bytes = file.read()
-        result = data_manager.import_from_csv_bytes(file_bytes)
-        # 记录上传日志
-        if 'user_id' in session:
-            count = result.get('count', 0) if result.get('success') else 0
-            data_manager.add_log(
-                session['user_id'],
-                session['username'],
-                '数据上传',
-                f'上传CSV文件，导入{count}条记录',
-                request.remote_addr
+    # 确保数据库存在
+    conn = pymysql.connect(
+        host=Config.MYSQL_HOST,
+        port=Config.MYSQL_PORT,
+        user=Config.MYSQL_USER,
+        password=Config.MYSQL_PASSWORD,
+        charset="utf8mb4",
+        autocommit=True,
+    )
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                f"CREATE DATABASE IF NOT EXISTS `{Config.MYSQL_DATABASE}` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
             )
-        return jsonify(result)
-
-    return jsonify({'success': False, 'message': '只支持CSV文件'})
-
-@app.route('/delete_csv', methods=['POST'])
-def delete_csv():
-    """删除（清空）所有已导入的CSV数据"""
-    try:
-        data_manager.clear_all_data()
-        # 记录删除日志
-        if 'user_id' in session:
-            data_manager.add_log(
-                session['user_id'],
-                session['username'],
-                '清空数据',
-                '清空所有CSV导入数据',
-                request.remote_addr
-            )
-        return jsonify({'success': True, 'message': '已清空所有CSV导入数据'})
-    except Exception as e:
-        return jsonify({'success': False, 'message': f'清空失败: {str(e)}'})
-
-
-@app.route('/chart_data', methods=['GET'])
-def get_chart_data():
-    """获取图表数据（不调用AI）"""
-    try:
-        # 获取所有物流数据
-        shipments, _ = data_manager.get_all_shipments(limit=10000)
-
-        if not shipments:
-            return jsonify({'success': False, 'message': '没有可分析的数据，请先上传CSV文件'})
-
-        # 获取每日统计
-        daily_stats = data_manager.get_daily_stats()
-        # 获取每日趋势数据
-        daily_trend = data_manager.get_daily_trend()
-
-        # 生成图表数据
-        chart_data = generate_chart_data(shipments, daily_stats)
-
-        # 准备响应数据
-        response_data = {
-            'success': True,
-            'statistics': {
-                **daily_stats,
-                'surface_3d': chart_data['surface_3d'],
-                'scatter_3d': chart_data['scatter_3d'],
-                'wireframe_3d': chart_data['wireframe_3d'],
-                'data_info': chart_data['data_info'],
-                'daily_trend': daily_trend
-            },
-            'summary': {
-                'total_records': len(shipments),
-                'status_distribution': model_handler._get_status_distribution(shipments)
-            }
-        }
-
-        return jsonify(response_data)
-
-    except Exception as e:
-        return jsonify({'success': False, 'message': f'获取数据失败: {str(e)}'})
-
-
-@app.route('/analyze', methods=['GET'])
-def analyze_data():
-    """分析物流数据"""
-    try:
-        # 获取所有物流数据
-        shipments, _ = data_manager.get_all_shipments(limit=10000)
-
-        if not shipments:
-            return jsonify({'success': False, 'message': '没有可分析的数据，请先上传CSV文件'})
-
-        # 获取每日统计
-        daily_stats = data_manager.get_daily_stats()
-        # 获取每日趋势数据
-        daily_trend = data_manager.get_daily_trend()
-
-        # 使用AI分析数据（使用asyncio.run执行异步代码）
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            analysis = loop.run_until_complete(model_handler.analyze_bulk_data(shipments))
-            daily_report = loop.run_until_complete(model_handler.generate_daily_report(daily_stats, shipments))
-        finally:
-            loop.close()
-
-        # 格式化响应
-        analysis_html = format_ai_response(analysis['analysis'])
-        report_html = format_ai_response(daily_report['report'])
-
-        # 生成图表数据
-        chart_data = generate_chart_data(shipments, daily_stats)
-        
-        # 准备响应数据
-        response_data = {
-            'success': True,
-            'analysis': analysis_html,
-            'daily_report': report_html,
-            'statistics': {
-                **daily_stats,
-                'surface_3d': chart_data['surface_3d'],
-                'scatter_3d': chart_data['scatter_3d'],
-                'wireframe_3d': chart_data['wireframe_3d'],
-                'data_info': chart_data['data_info'],
-                'daily_trend': daily_trend  # 添加每日趋势数据
-            },
-            'summary': {
-                'total_records': len(shipments),
-                'status_distribution': model_handler._get_status_distribution(shipments)
-            }
-        }
-        
-
-        
-        return jsonify(response_data)
-
-    except Exception as e:
-        return jsonify({'success': False, 'message': f'分析失败: {str(e)}'})
-
-
-@app.route('/analysis_report', methods=['GET'])
-def get_analysis_report():
-    """生成运营分析报告（不含三维图表）"""
-    try:
-        # 获取所有物流数据
-        shipments, _ = data_manager.get_all_shipments(limit=10000)
-
-        if not shipments:
-            return jsonify({'success': False, 'message': '没有可分析的数据，请先上传CSV文件'})
-
-        # 获取每日统计
-        daily_stats = data_manager.get_daily_stats()
-
-        # 使用AI分析数据（使用asyncio.run执行异步代码）
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            analysis = loop.run_until_complete(model_handler.analyze_bulk_data(shipments))
-            daily_report = loop.run_until_complete(model_handler.generate_daily_report(daily_stats, shipments))
-        finally:
-            loop.close()
-
-        # 格式化响应
-        analysis_html = format_ai_response(analysis['analysis'])
-        report_html = format_ai_response(daily_report['report'])
-
-        return jsonify({
-            'success': True,
-            'analysis': analysis_html,
-            'daily_report': report_html
-        })
-
-    except Exception as e:
-        return jsonify({'success': False, 'message': f'生成报告失败: {str(e)}'})
-
-
-@app.route('/shipments', methods=['GET'])
-def get_shipments():
-    """获取物流数据列表，支持分页"""
-    page = request.args.get('page', 1, type=int)
-    pageSize = request.args.get('pageSize', 10, type=int)
-    limit = request.args.get('limit', None, type=int)
-
-    if limit is not None:
-        # 兼容旧的 limit 参数
-        shipments = data_manager.get_all_shipments(limit=limit)
-        if isinstance(shipments, tuple):
-            shipments = shipments[0]
-        return jsonify({'success': True, 'data': shipments, 'total': len(shipments)})
-
-    shipments, total = data_manager.get_all_shipments(page=page, pageSize=pageSize)
-    return jsonify({'success': True, 'data': shipments, 'total': total, 'page': page, 'pageSize': pageSize})
-
-
-@app.route('/shipment/<shipment_id>', methods=['GET'])
-def get_shipment(shipment_id):
-    """获取单个物流详情和分析"""
-    shipment = data_manager.get_shipment_by_id(shipment_id)
-    if not shipment:
-        return jsonify({'success': False, 'message': '未找到指定的物流信息'})
-
-    events = data_manager.get_shipment_events(shipment_id)
-
-    # 使用AI分析（使用asyncio.run执行异步代码）
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        analysis = loop.run_until_complete(model_handler.analyze_shipment_data(shipment))
-        prediction = loop.run_until_complete(model_handler.predict_delivery_time(shipment, events))
     finally:
-        loop.close()
+        conn.close()
 
-    # 格式化响应
-    analysis_html = format_ai_response(analysis['analysis'])
-    prediction_html = format_ai_response(prediction['prediction'])
+    # 初始化表结构
+    shipment_dao = ShipmentDAO()
+    with shipment_dao.get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS shipments (
+                    id VARCHAR(128) PRIMARY KEY,
+                    origin VARCHAR(255),
+                    destination VARCHAR(255),
+                    origin_city VARCHAR(255),
+                    destination_city VARCHAR(255),
+                    status VARCHAR(64),
+                    estimated_delivery DATE,
+                    actual_delivery DATE,
+                    weight DOUBLE,
+                    dimensions TEXT,
+                    customer_id VARCHAR(128),
+                    courier_company VARCHAR(255),
+                    courier VARCHAR(255),
+                    package_type VARCHAR(128),
+                    priority VARCHAR(64),
+                    customer_type VARCHAR(128),
+                    payment_method VARCHAR(128),
+                    shipping_fee DOUBLE,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """)
 
-    return jsonify({
-        'success': True,
-        'shipment': shipment,
-        'events': events,
-        'analysis': analysis_html,
-        'prediction': prediction_html
-    })
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS shipment_events (
+                    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    shipment_id VARCHAR(128),
+                    event_type VARCHAR(128),
+                    location VARCHAR(255),
+                    description TEXT,
+                    timestamp DATETIME,
+                    CONSTRAINT fk_shipment
+                        FOREIGN KEY (shipment_id) REFERENCES shipments(id)
+                        ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """)
 
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    username VARCHAR(64) UNIQUE NOT NULL,
+                    password VARCHAR(256) NOT NULL,
+                    role VARCHAR(32) DEFAULT 'user',
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """)
 
-@app.route('/generate_code', methods=['POST'])
-async def generate_code():
-    """生成Python代码"""
-    try:
-        data = request.get_json()
-        question = data.get('question', '').strip()
-        
-        if not question:
-            return jsonify({'success': False, 'message': '请输入问题'})
-        
-        # 获取物流数据作为上下文
-        shipments, _ = data_manager.get_all_shipments(limit=1000)
-        
-        # 构建代码生成提示词
-        context = f"""
-你是一个Python数据分析专家，专注于物流数据分析。
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS operation_logs (
+                    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    user_id INT,
+                    username VARCHAR(64),
+                    action VARCHAR(128),
+                    detail TEXT,
+                    ip_address VARCHAR(64),
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """)
 
-## 可用的物流数据字段
-- id: 物流单号
-- origin: 发货地
-- origin_city: 发货城市
-- destination: 收货地
-- destination_city: 收货城市
-- status: 物流状态
-- estimated_delivery: 预计送达时间
-- actual_delivery: 实际送达时间
-- weight: 重量
-- courier_company: 快递公司
-- shipping_fee: 运费
-- created_at: 创建时间
+            # 初始化管理员账号
+            import hashlib
+            cursor.execute("SELECT id FROM users WHERE role = 'admin' LIMIT 1")
+            if cursor.fetchone() is None:
+                admin_password = hashlib.sha256("admin123".encode()).hexdigest()
+                cursor.execute(
+                    "INSERT INTO users (username, password, role) VALUES (%s, %s, %s)",
+                    ("admin", admin_password, "admin")
+                )
+                logger.info("已创建默认管理员账号: admin / admin123")
 
-## 数据样本（前5条）
-{shipments[:5] if shipments else '暂无数据'}
-
-## 重要说明
-- 数据已经存在于 `shipments` 变量中（类型：list of dict），不需要重新加载
-- `shipments` 变量可以直接使用，无需导入或读取
-- 代码中可以直接使用 `pd.DataFrame(shipments)` 将数据转为 DataFrame
-
-## 可用的库和函数
-- pandas (pd): 数据处理
-- numpy (np): 数值计算
-- matplotlib.pyplot (plt): 绘图
-- seaborn (sns): 高级可视化
-- datetime, timedelta: 时间处理
-- json: JSON处理
-- 所有基础函数：print, len, str, int, float, list, dict, range, sorted, sum, min, max, zip, map, filter 等
-
-## 输出要求
-- 使用 print() 输出分析结果
-- **图表标题和标签请使用英文**，避免中文字体问题
-- 如果需要生成图像，使用 plt.savefig() 保存到 BytesIO 缓冲区，然后 base64 编码输出
-- 不要使用 input() 函数
-- 不要使用 open() 进行文件读写
-- 不要导入 os, subprocess, sys, pathlib 等系统模块
-- 添加适当的错误处理，处理空数据情况
-"""
-
-        prompt = f"""用户问题：{question}
-
-请根据上述信息生成Python代码。只返回可运行的Python代码，不要包含任何说明文字、注释或markdown标记。代码应该能够直接在提供的沙箱环境中执行。"""
-
-        # 使用AI生成代码
-        code = await model_handler.generate_response(prompt, context)
-        
-        # 清理代码（移除可能的markdown标记）
-        if code.startswith('```python'):
-            code = code[9:]
-        if code.startswith('```'):
-            code = code[3:]
-        if code.endswith('```'):
-            code = code[:-3]
-        
-        code = code.strip()
-        
-
-        
-        return jsonify({
-            'success': True,
-            'code': code
-        })
-        
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'生成代码失败: {str(e)}'
-        })
+        conn.commit()
 
 
-@app.route('/execute_code', methods=['POST'])
-def execute_code():
-    """执行Python代码"""
-    try:
-        data = request.get_json()
-        code = data.get('code', '').strip()
-        
-        if not code:
-            return jsonify({'success': False, 'error': '没有提供代码'})
-        
-        # 创建安全的执行环境
-        # 使用一个受限的 __builtins__，移除危险函数
-        _allowed_builtins = {
-            'print', 'len', 'str', 'int', 'float', 'list', 'dict', 'tuple', 'set',
-            'min', 'max', 'sum', 'sorted', 'range', 'enumerate', 'zip', 'map',
-            'filter', 'abs', 'round', 'type', 'isinstance', 'hasattr', 'getattr',
-            'setattr', '__import__'
-        }
-        safe_builtins = {name: getattr(builtins, name) for name in _allowed_builtins if hasattr(builtins, name)}
-        # 确保 __import__ 可用
-        if '__import__' not in safe_builtins:
-            safe_builtins['__import__'] = builtins.__import__
+# 注册路由
+register_routes(app)
 
-        # 添加常用的数据分析库
-        try:
-            import pandas as pd
-            import numpy as np
-            import matplotlib
-            matplotlib.use('Agg')  # 非交互式后端
-            import matplotlib.pyplot as plt
-            import seaborn as sns
-            from datetime import datetime, timedelta
-            import json
-            import io
-
-            # 配置 matplotlib 中文字体
-            configure_matplotlib()
-
-            safe_globals = {
-                '__builtins__': safe_builtins,
-                'pd': pd,
-                'np': np,
-                'plt': plt,
-                'sns': sns,
-                'datetime': datetime,
-                'timedelta': timedelta,
-                'json': json,
-                'io': io,
-                'shipments': data_manager.get_all_shipments(limit=10000)[0]  # 提供数据
-            }
-        except ImportError as e:
-            return jsonify({
-                'success': False,
-                'error': f'缺少必要的库: {str(e)}'
-            })
-        
-        # 捕获输出
-        old_stdout = sys.stdout
-        old_stderr = sys.stderr
-        sys.stdout = captured_output = io.StringIO()
-        sys.stderr = captured_error = io.StringIO()
-        
-        try:
-            # 执行代码
-            exec(code, safe_globals)
-            
-            # 获取输出
-            output = captured_output.getvalue()
-            error = captured_error.getvalue()
-            
-            if error:
-
-                
-                return jsonify({
-                    'success': False,
-                    'error': f'执行错误:\n{error}'
-                })
-            
-
-            
-            # 从执行后的 globals 中提取 base64 图像数据
-            image_data = None
-            for key in ['img_base64', 'image_base64', 'img_data', 'img_buffer']:
-                if key in safe_globals:
-                    val = safe_globals[key]
-                    if isinstance(val, (str, bytes)) and len(str(val)) > 100:
-                        # 如果是 BytesIO 对象，尝试获取其内容
-                        if hasattr(val, 'getvalue'):
-                            val = val.getvalue()
-                        if isinstance(val, bytes):
-                            import base64 as b64_module
-                            try:
-                                image_data = b64_module.b64encode(val).decode('ascii')
-                                break
-                            except:
-                                pass
-                        elif isinstance(val, str) and len(val) > 100:
-                            image_data = val
-                            break
-
-            result = {
-                'success': True,
-                'output': output or '代码执行成功，无输出内容'
-            }
-            if image_data:
-                result['image'] = image_data
-
-            return jsonify(result)
-            
-        except Exception as e:
-            error_msg = f'代码执行异常:\n{str(e)}\n\n{traceback.format_exc()}'
-
-            
-            return jsonify({
-                'success': False,
-                'error': error_msg
-            })
-        
-        finally:
-            # 恢复标准输出
-            sys.stdout = old_stdout
-            sys.stderr = old_stderr
-            
-    except Exception as e:
-
-        
-        return jsonify({
-            'success': False,
-            'error': f'执行请求失败: {str(e)}'
-        })
-
-
-@app.route('/api/dashboard/trend', methods=['GET'])
-def get_dashboard_trend():
-    """获取动态看板趋势数据"""
-    try:
-        granularity = request.args.get('granularity', 'realtime')
-        shipments, _ = data_manager.get_all_shipments(limit=10000)
-
-        if not shipments:
-            return jsonify({'success': False, 'message': '没有可用的数据'})
-        
-        # 生成趋势数据
-        trend_data = []
-        now = datetime.now()
-        
-        # 根据时间粒度生成不同数量的数据点
-        if granularity == 'realtime':
-            points = 60
-            interval = 1  # 1秒
-        elif granularity == '1min':
-            points = 60
-            interval = 60  # 1分钟
-        else:  # 5min
-            points = 60
-            interval = 300  # 5分钟
-        
-        for i in range(points):
-            time = now - timedelta(seconds=i * interval)
-            # 模拟数据：基于实际数据生成趋势
-            base_value = len(shipments) // 100
-            random_factor = (hash(str(time)) % 100) / 100
-            value = base_value + int(random_factor * 100)
-            
-            trend_data.append({
-                'time': time.strftime('%H:%M:%S'),
-                'value': value
-            })
-        
-        return jsonify({
-            'success': True,
-            'data': trend_data[::-1]  # 反转使时间从早到晚
-        })
-        
-    except Exception as e:
-        return jsonify({'success': False, 'message': f'获取趋势数据失败: {str(e)}'})
-
-
-@app.route('/api/dashboard/metrics', methods=['GET'])
-def get_dashboard_metrics():
-    """获取动态看板指标数据"""
-    try:
-        shipments, _ = data_manager.get_all_shipments(limit=10000)
-
-        if not shipments:
-            return jsonify({'success': False, 'message': '没有可用的数据'})
-        
-        # 计算指标
-        total = len(shipments)
-        delivered = sum(1 for s in shipments if s.get('status') == 'delivered')
-        in_transit = sum(1 for s in shipments if s.get('status') == 'in_transit')
-        delivery_rate = (delivered / total * 100) if total > 0 else 0
-        
-        # 计算平均时效
-        delivery_times = []
-        for s in shipments:
-            if s.get('actual_delivery') and s.get('created_at'):
-                try:
-                    created = datetime.fromisoformat(str(s['created_at']).replace('Z', '+00:00'))
-                    delivered = datetime.fromisoformat(str(s['actual_delivery']).replace('Z', '+00:00'))
-                    hours = (delivered - created).total_seconds() / 3600
-                    delivery_times.append(hours)
-                except:
-                    pass
-        
-        avg_delivery_time = sum(delivery_times) / len(delivery_times) if delivery_times else 0
-        
-        # 模拟中转仓效率和异常率
-        warehouse_efficiency = 75 + (hash(str(datetime.now())) % 20)
-        exception_rate = 5 + (hash(str(datetime.now())) % 10)
-        
-        # 生成趋势
-        def generate_trend():
-            return round((hash(str(datetime.now())) % 200 - 100) / 10, 1)
-        
-        metrics = [
-            {
-                'name': '今日交付',
-                'value': delivered,
-                'trend': generate_trend(),
-                'trendUp': hash(str(datetime.now())) % 2 == 0
-            },
-            {
-                'name': '运输中',
-                'value': in_transit,
-                'trend': generate_trend(),
-                'trendUp': hash(str(datetime.now())) % 2 == 0
-            },
-            {
-                'name': '交付率',
-                'value': f'{delivery_rate:.1f}%',
-                'trend': generate_trend(),
-                'trendUp': hash(str(datetime.now())) % 2 == 0
-            },
-            {
-                'name': '平均时效',
-                'value': f'{avg_delivery_time:.1f}小时',
-                'trend': generate_trend(),
-                'trendUp': hash(str(datetime.now())) % 2 == 1  # 时效越低越好
-            },
-            {
-                'name': '中转仓效率',
-                'value': f'{warehouse_efficiency:.1f}%',
-                'trend': generate_trend(),
-                'trendUp': hash(str(datetime.now())) % 2 == 0
-            },
-            {
-                'name': '异常率',
-                'value': f'{exception_rate:.1f}%',
-                'trend': generate_trend(),
-                'trendUp': hash(str(datetime.now())) % 2 == 1  # 异常率越低越好
-            }
-        ]
-        
-        return jsonify({
-            'success': True,
-            'data': metrics
-        })
-        
-    except Exception as e:
-        return jsonify({'success': False, 'message': f'获取指标数据失败: {str(e)}'})
-
-
-@app.route('/api/dashboard/table', methods=['GET'])
-def get_dashboard_table():
-    """获取动态看板表格数据"""
-    try:
-        page = request.args.get('page', 1, type=int)
-        pageSize = request.args.get('pageSize', 10, type=int)
-        status_filter = request.args.get('status', 'all')
-        search = request.args.get('search', '')
-        sortField = request.args.get('sortField', 'time')
-        sortDirection = request.args.get('sortDirection', 'desc')
-
-        shipments, _ = data_manager.get_all_shipments(limit=10000)
-
-        if not shipments:
-            return jsonify({'success': False, 'message': '没有可用的数据'})
-        
-        # 状态映射
-        status_map = {
-            'delivered': '已交付',
-            'in_transit': '运输中',
-            'pending': '待处理',
-            'out_for_delivery': '派件中',
-            'picked_up': '已揽件',
-            'processing': '处理中',
-            'failed_delivery': '配送失败',
-            'returned': '已退回'
-        }
-        
-        # 转换数据格式
-        table_data = []
-        for s in shipments:
-            status_cn = status_map.get(s.get('status'), s.get('status', '未知'))
-            
-            table_data.append({
-                'orderId': s.get('id', ''),
-                'company': s.get('courier_company', '未知'),
-                'status': status_cn,
-                'origin': s.get('origin_city', s.get('origin', '未知')),
-                'destination': s.get('destination_city', s.get('destination', '未知')),
-                'time': s.get('created_at', ''),
-                'value': str(s.get('shipping_fee', 0))
-            })
-        
-        # 筛选
-        if status_filter != 'all':
-            table_data = [d for d in table_data if d['status'] == status_filter]
-        
-        if search:
-            search_lower = search.lower()
-            table_data = [d for d in table_data 
-                         if search_lower in d['orderId'].lower() or 
-                            search_lower in d['company'].lower()]
-        
-        # 排序
-        reverse = sortDirection == 'desc'
-        try:
-            table_data.sort(key=lambda x: x.get(sortField, ''), reverse=reverse)
-        except:
-            pass
-        
-        # 分页
-        total = len(table_data)
-        start = (page - 1) * pageSize
-        end = start + pageSize
-        page_data = table_data[start:end]
-        
-        return jsonify({
-            'success': True,
-            'data': page_data,
-            'total': total,
-            'page': page,
-            'pageSize': pageSize
-        })
-        
-    except Exception as e:
-        return jsonify({'success': False, 'message': f'获取表格数据失败: {str(e)}'})
-
-
-@app.route('/api/shipments/compare', methods=['GET'])
-def compare_shipments():
-    """对比同一收件地址或发件地址的物流信息"""
-    try:
-        # 获取查询参数
-        origin_filter = request.args.get('origin', '')
-        destination_filter = request.args.get('destination', '')
-        courier_filter = request.args.get('courier', '')
-        page = request.args.get('page', 1, type=int)
-        pageSize = request.args.get('pageSize', 20, type=int)
-        
-        # 获取所有物流数据
-        shipments, _ = data_manager.get_all_shipments(limit=10000)
-
-        if not shipments:
-            return jsonify({'success': False, 'message': '没有可用的数据'})
-        
-        # 应用过滤器
-        filtered_shipments = []
-        for shipment in shipments:
-            origin = shipment.get('origin', '')
-            destination = shipment.get('destination', '')
-            courier = shipment.get('courier_company', '')
-            
-            # 应用发件地址过滤
-            if origin_filter and origin_filter not in origin:
-                continue
-            
-            # 应用收件地址过滤
-            if destination_filter and destination_filter not in destination:
-                continue
-            
-            # 应用快递公司过滤
-            if courier_filter and courier_filter not in courier:
-                continue
-            
-            filtered_shipments.append(shipment)
-        
-        # 按收件地址和发件地址分组
-        address_groups = {}
-        
-        for shipment in filtered_shipments:
-            # 按收件地址分组
-            destination = shipment.get('destination', '')
-            if destination:
-                if destination not in address_groups:
-                    address_groups[destination] = {'type': 'destination', 'shipments': []}
-                address_groups[destination]['shipments'].append(shipment)
-            
-            # 按发件地址分组
-            origin = shipment.get('origin', '')
-            if origin:
-                if origin not in address_groups:
-                    address_groups[origin] = {'type': 'origin', 'shipments': []}
-                address_groups[origin]['shipments'].append(shipment)
-        
-        # 过滤出有两条以上记录的地址
-        valid_groups = {}
-        for address, group in address_groups.items():
-            if len(group['shipments']) >= 2:
-                valid_groups[address] = group
-        
-        # 对每个地址组进行分析
-        comparison_results = []
-        for address, group in valid_groups.items():
-            shipments = group['shipments']
-            
-            # 计算平均配送时间
-            delivery_times = []
-            for shipment in shipments:
-                if shipment.get('actual_delivery') and shipment.get('created_at'):
-                    try:
-                        created = datetime.fromisoformat(str(shipment['created_at']).replace('Z', '+00:00'))
-                        delivered = datetime.fromisoformat(str(shipment['actual_delivery']).replace('Z', '+00:00'))
-                        hours = (delivered - created).total_seconds() / 3600
-                        delivery_times.append(hours)
-                    except:
-                        pass
-            
-            avg_delivery_time = sum(delivery_times) / len(delivery_times) if delivery_times else 0
-            
-            # 统计状态分布
-            status_counts = {}
-            for shipment in shipments:
-                status = shipment.get('status', 'unknown')
-                status_counts[status] = status_counts.get(status, 0) + 1
-            
-            # 统计快递公司分布
-            courier_counts = {}
-            for shipment in shipments:
-                courier = shipment.get('courier_company', 'unknown')
-                courier_counts[courier] = courier_counts.get(courier, 0) + 1
-            
-            # 计算平均运费
-            total_fee = sum(shipment.get('shipping_fee', 0) for shipment in shipments)
-            avg_fee = total_fee / len(shipments) if shipments else 0
-            
-            comparison_results.append({
-                'address': address,
-                'address_type': group['type'],
-                'shipment_count': len(shipments),
-                'avg_delivery_time': avg_delivery_time,
-                'status_distribution': status_counts,
-                'courier_distribution': courier_counts,
-                'avg_shipping_fee': avg_fee,
-                'shipments': shipments
-            })
-        
-        # 按物流数量排序
-        comparison_results.sort(key=lambda x: x['shipment_count'], reverse=True)
-        
-        # 分页处理
-        total = len(comparison_results)
-        start = (page - 1) * pageSize
-        end = start + pageSize
-        page_data = comparison_results[start:end]
-        
-        return jsonify({
-            'success': True,
-            'data': page_data,
-            'total': total,
-            'page': page,
-            'pageSize': pageSize
-        })
-        
-    except Exception as e:
-        return jsonify({'success': False, 'message': f'对比分析失败: {str(e)}'})
-
-
-@app.route('/api/shipments/filters', methods=['GET'])
-def get_shipment_filters():
-    """获取物流筛选过滤选项"""
-    try:
-        shipments, _ = data_manager.get_all_shipments(limit=10000)
-        if isinstance(shipments, tuple):
-            shipments = shipments[0]
-
-        origins = sorted(list(set(s.get('origin', '') for s in shipments if s.get('origin'))))
-        destinations = sorted(list(set(s.get('destination', '') for s in shipments if s.get('destination'))))
-        couriers = sorted(list(set(s.get('courier_company', '') for s in shipments if s.get('courier_company'))))
-
-        return jsonify({
-            'success': True,
-            'origins': origins,
-            'destinations': destinations,
-            'couriers': couriers
-        })
-    except Exception as e:
-        return jsonify({'success': False, 'message': f'获取筛选选项失败: {str(e)}'})
-
-
-@app.route('/api/shipments/analyze-comparison', methods=['POST'])
-async def analyze_comparison():
-    """使用LLM分析物流对比数据并给出优化方案"""
-    try:
-        data = request.get_json()
-        comparison_data = data.get('comparison_data', [])
-        
-        if not comparison_data:
-            return jsonify({'success': False, 'message': '没有提供对比数据'})
-        
-        # 构建分析提示词
-        prompt = f"""
-        你是一个物流运营专家，需要对以下物流对比数据进行分析并给出优化方案：
-        
-        {comparison_data}
-        
-        请按照以下结构输出分析结果：
-        1. 数据概览：总结对比情况，包括涉及的地址数量、物流总量等
-        2. 关键发现：识别出的问题和异常情况
-        3. 优化方案：针对发现的问题给出具体的优化建议
-        4. 实施优先级：对优化方案进行优先级排序
-        
-        分析要具体、可操作，基于实际物流运营场景。
-        """
-        
-        # 使用AI生成分析
-        analysis = await model_handler.generate_response(prompt)
-        
-        return jsonify({
-            'success': True,
-            'analysis': analysis
-        })
-        
-    except Exception as e:
-        return jsonify({'success': False, 'message': f'分析失败: {str(e)}'})
+# 初始化数据库
+init_database()
 
 
 if __name__ == '__main__':
+    logger.info("启动物流管理系统...")
     app.run(debug=True, host='0.0.0.0', port=5000)

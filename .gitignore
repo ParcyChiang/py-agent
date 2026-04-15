@@ -210,13 +210,14 @@ __marimo__/
 # 忽略 logistics.db 数据库文件
 logistics.db
 
-# 确保 .html 文件不被忽略（但通常不需要特别设置，除非前面有规则忽略了它们）
+# 忽略 data/csv_gen 下所有内容（除了 generate_logistics_data.py）
+data/csv_gen/*
+!data/csv_gen/generate_logistics_data.py
+
+# 确保 .html 文件不被忽略
 !*.html
 data/csv_gen/.DS_Store
 .DS_Store
-data/csv_gen/logistics_sample_100.csv
-data/csv_gen/logistics_sample_1000.csv
-data/csv_gen/logistics_sample_5000.csv
-data/csv_gen/logistics_sample_10000.csv
-/论文.md
-/论文写作规范.md
+
+# 忽略 docs 目录
+docs/

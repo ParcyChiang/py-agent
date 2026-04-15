@@ -53,21 +53,29 @@
 ```text
 py-agent/
 ├─ app.py                     # Flask 入口
-├─ models/                    # 数据模型与数据库相关
-├─ templates/                 # 前端模板 (Jinja2)
-├─ static/                    # 静态资源
-├─ data/                      # 数据目录
-│   ├─ csv_gen/               # 示例数据与生成脚本
-│   └─ code_gen/              # Python 代码生成演示函数
-├─ logistics.db               # SQLite 数据库（开发环境）
+├─ internal/                  # 三层架构
+│   ├─ handler/              # HTTP 处理层
+│   ├─ server/               # 业务逻辑层
+│   ├─ models/               # DAO 数据访问层
+│   ├─ middleware/           # 中间件（认证、日志）
+│   ├─ router/               # 路由注册
+│   └─ pkg/                  # 共享模块
+│       ├─ config.py         # 配置管理
+│       ├─ response.py        # 统一响应结构
+│       ├─ constants.py      # 常量定义
+│       ├─ charts/           # 图表生成
+│       └─ utils/            # 工具函数
+├─ templates/                # 前端模板 (Jinja2)
+├─ static/                   # 静态资源
+├─ data/                     # 数据目录
+│   └─ csv_gen/              # 示例数据生成脚本
 ├─ requirements.txt           # Python 依赖
 ├─ CHANGELOG.md
-├─ toDo.md
 └─ README.md
 ```
 
 ## 数据与数据库
-- 首次运行时，如果数据库或表不存在，应用会在需要时自动创建（具体逻辑见 `models/__init__.py`）。
+- 首次运行时，如果数据库或表不存在，应用会在需要时自动创建（具体逻辑见 `internal/models/`）。
 
 ## 上传与示例数据
 - 通过脚本生成自定义规模数据：
