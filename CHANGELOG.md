@@ -1,4 +1,7 @@
 ## py-agent搭建Log
+### v1.9
+1. fix: 修复 `login_required` 装饰器不支持 async 函数的问题，对比分析等功能恢复正常
+
 ### v1.8
 1. refactor: 将 `charts/`、`utils/`、`config.py`、`response.py`、`constants.py` 移动到 `internal/pkg/`
 2. refactor: 更新所有 internal 模块的 import 路径

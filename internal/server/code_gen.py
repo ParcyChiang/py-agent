@@ -73,7 +73,7 @@ class CodeGenService:
             from datetime import datetime, timedelta
             import json
 
-            from utils import configure_matplotlib
+            from internal.pkg.utils import configure_matplotlib
             configure_matplotlib()
 
             safe_globals = {

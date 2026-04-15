@@ -1,5 +1,6 @@
 # middleware/auth.py
 """认证中间件"""
+import asyncio
 from functools import wraps
 from flask import session, jsonify, redirect, url_for
 
@@ -7,15 +8,26 @@ from internal.pkg.response import error
 
 
 def login_required(f):
-    """登录检查装饰器"""
+    """登录检查装饰器（支持同步和异步函数）"""
     @wraps(f)
-    def decorated_function(*args, **kwargs):
+    async def decorated_async_function(*args, **kwargs):
+        if 'user_id' not in session:
+            if request_wants_json():
+                return jsonify({'success': False, 'message': '未登录'})
+            return redirect(url_for('login'))
+        return await f(*args, **kwargs)
+
+    @wraps(f)
+    def decorated_sync_function(*args, **kwargs):
         if 'user_id' not in session:
             if request_wants_json():
                 return jsonify({'success': False, 'message': '未登录'})
             return redirect(url_for('login'))
         return f(*args, **kwargs)
-    return decorated_function
+
+    if asyncio.iscoroutinefunction(f):
+        return decorated_async_function
+    return decorated_sync_function
 
 
 def admin_required(f):
