@@ -2,6 +2,7 @@
 ### v1.3
 1. feat: compare适配毛玻璃效果
 2. feat: compare接收回调适配markdown
+3. feat: compare.select下拉框提前获取表中数据
 
 ### v1.2
 1. feat: upload页面新增分页器，默认每页10条数据
