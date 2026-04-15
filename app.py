@@ -224,6 +224,10 @@ def page_new_dashboard():
 def page_compare():
     return render_template('compare.html')
 
+@app.route('/page/analysis_report')
+def page_analysis_report():
+    return render_template('analysis_report.html')
+
 # @app.route('/page/admin_log')
 # def page_code_generator():
 #     return render_template('admin_log.html')
@@ -332,6 +336,42 @@ def analyze_data():
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'分析失败: {str(e)}'})
+
+
+@app.route('/analysis_report', methods=['GET'])
+def get_analysis_report():
+    """生成运营分析报告（不含三维图表）"""
+    try:
+        # 获取所有物流数据
+        shipments = data_manager.get_all_shipments(limit=10000)
+
+        if not shipments:
+            return jsonify({'success': False, 'message': '没有可分析的数据，请先上传CSV文件'})
+
+        # 获取每日统计
+        daily_stats = data_manager.get_daily_stats()
+
+        # 使用AI分析数据（使用asyncio.run执行异步代码）
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            analysis = loop.run_until_complete(model_handler.analyze_bulk_data(shipments))
+            daily_report = loop.run_until_complete(model_handler.generate_daily_report(daily_stats, shipments))
+        finally:
+            loop.close()
+
+        # 格式化响应
+        analysis_html = format_ai_response(analysis['analysis'])
+        report_html = format_ai_response(daily_report['report'])
+
+        return jsonify({
+            'success': True,
+            'analysis': analysis_html,
+            'daily_report': report_html
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'生成报告失败: {str(e)}'})
 
 
 @app.route('/shipments', methods=['GET'])

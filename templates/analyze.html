@@ -19,7 +19,7 @@
     <div class="container">
         <header>
             <h1>运营分析</h1>
-            <p>获取AI生成的面向执行的洞察与行动清单。</p>
+            <p>查看物流数据的三维可视化图表与分析。</p>
         </header>
 
         <nav class="nav">
@@ -28,6 +28,7 @@
             <a class="secondary" href="/page/analyze">运营分析</a>
             <a class="secondary" href="/page/shipments">数据列表</a>
             <a class="secondary" href="/page/report">日报中心</a>
+            <a class="secondary" href="/page/analysis_report">运营报告</a>
             <a class="secondary" href="/page/new_dashboard">实时监控</a>
             <a class="secondary" href="/page/code_generator">代码生成器</a>
             <a class="secondary" href="/page/compare">物流对比</a>
@@ -59,14 +60,6 @@
                 <div class="chart-card">
                     <h3>数据信息</h3>
                     <div id="dataInfo" style="height: 300px; overflow-y: auto;"></div>
-                </div>
-                <div class="report-card">
-                    <h3>AI分析报告</h3>
-                    <div id="analysisContent">点击"分析物流数据"生成报告</div>
-                </div>
-                <div class="report-card">
-                    <h3>每日运营报告</h3>
-                    <div id="dailyReportContent">点击"分析物流数据"生成日报</div>
                 </div>
             </div>
         </div>
@@ -184,8 +177,6 @@
             if (savedAnalysis) {
                 try {
                     $('#statsContent').html(savedAnalysis.statsContent);
-                    $('#analysisContent').html(savedAnalysis.analysisContent);
-                    $('#dailyReportContent').html(savedAnalysis.dailyReportContent);
                     if (savedAnalysis.statusDistribution) {
                         createStatusChart(savedAnalysis.statusDistribution);
                     }
@@ -201,8 +192,7 @@
             }
 
             $('#analyzeBtn').on('click', function() {
-                $('#analysisContent').html('分析中，请稍候...');
-                $('#dailyReportContent').html('生成报告中...');
+                $('#statsContent').html('加载中...');
                 $.getJSON('/analyze', function(response) {
                     if (response.success) {
                         const statsHtml = '<p>总发货量: '+response.statistics.total_shipments+'</p>'+
@@ -210,14 +200,10 @@
                             '<ul>'+Object.entries(response.summary.status_distribution).map(function(e){return '<li>'+e[0]+': '+e[1]+'</li>';}).join('')+'</ul>';
 
                         $('#statsContent').html(statsHtml);
-                        $('#analysisContent').html(response.analysis);
-                        $('#dailyReportContent').html(response.daily_report);
 
                         // 保存到缓存
                         cacheSet('analyze_data', {
                             statsContent: statsHtml,
-                            analysisContent: response.analysis,
-                            dailyReportContent: response.daily_report,
                             statusDistribution: response.summary.status_distribution,
                             chartData: response.statistics,
                             dataInfo: response.statistics.data_info
@@ -228,10 +214,10 @@
                         display3DCharts(response.statistics);
                         displayDataInfo(response.statistics.data_info);
                     } else {
-                        $('#analysisContent').html('<div class="error">'+response.message+'</div>');
+                        $('#statsContent').html('<div class="error">'+response.message+'</div>');
                     }
                 }).fail(function() {
-                    $('#analysisContent').html('<div class="error">分析失败，请重试</div>');
+                    $('#statsContent').html('<div class="error">加载失败，请重试</div>');
                 });
             });
         });
