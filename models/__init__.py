@@ -13,6 +13,9 @@ import requests
 from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime
 
+from utils import safe_float, safe_str, safe_date
+from constants import STATUS_CN_MAP
+
 logger = logging.getLogger("LogisticsAgent")
 
 
@@ -299,38 +302,13 @@ class LogisticsDataManager:
             df = pd.read_csv(file_path)
             logger.info(f"CSV列名: {list(df.columns)}")
             logger.info(f"CSV行数: {len(df)}")
-            
+
             shipments = df.to_dict('records')
 
             # 转换数据格式
             processed_shipments = []
             for i, shipment in enumerate(shipments):
                 try:
-                    # 安全的数据类型转换
-                    def safe_float(value, default=0.0):
-                        try:
-                            if pd.isna(value) or value == '' or value is None:
-                                return default
-                            return float(value)
-                        except (ValueError, TypeError):
-                            return default
-                    
-                    def safe_str(value, default=''):
-                        try:
-                            if pd.isna(value) or value is None:
-                                return default
-                            return str(value)
-                        except (ValueError, TypeError):
-                            return default
-                    
-                    def safe_date(value):
-                        try:
-                            if pd.isna(value) or value == '' or value is None:
-                                return None
-                            return str(value)
-                        except (ValueError, TypeError):
-                            return None
-
                     processed_shipment = {
                         'id': safe_str(shipment.get('id', '')),
                         'origin': safe_str(shipment.get('origin', '')),
@@ -412,37 +390,12 @@ class LogisticsDataManager:
             df = pd.read_csv(BytesIO(file_bytes))
             logger.info(f"CSV列名: {list(df.columns)}")
             logger.info(f"CSV行数: {len(df)}")
-            
+
             shipments = df.to_dict('records')
 
             processed_shipments = []
             for i, shipment in enumerate(shipments):
                 try:
-                    # 安全的数据类型转换
-                    def safe_float(value, default=0.0):
-                        try:
-                            if pd.isna(value) or value == '' or value is None:
-                                return default
-                            return float(value)
-                        except (ValueError, TypeError):
-                            return default
-                    
-                    def safe_str(value, default=''):
-                        try:
-                            if pd.isna(value) or value is None:
-                                return default
-                            return str(value)
-                        except (ValueError, TypeError):
-                            return default
-                    
-                    def safe_date(value):
-                        try:
-                            if pd.isna(value) or value == '' or value is None:
-                                return None
-                            return str(value)
-                        except (ValueError, TypeError):
-                            return None
-
                     processed_shipment = {
                         'id': safe_str(shipment.get('id', '')),
                         'origin': safe_str(shipment.get('origin', '')),
@@ -855,19 +808,9 @@ class MiniMaxModelHandler:
     def _get_status_distribution(self, shipments_data: List[Dict]) -> Dict[str, int]:
         """获取状态分布（返回中文状态名称）"""
         distribution = {}
-        status_cn_map = {
-            'delivered': '已送达',
-            'failed_delivery': '配送失败',
-            'in_transit': '运输中',
-            'out_for_delivery': '派件中',
-            'pending': '待处理',
-            'picked_up': '已揽件',
-            'processing': '处理中',
-            'returned': '已退回'
-        }
         for shipment in shipments_data:
             status = shipment.get('status', 'unknown')
-            cn_status = status_cn_map.get(status, status)
+            cn_status = STATUS_CN_MAP.get(status, status)
             distribution[cn_status] = distribution.get(cn_status, 0) + 1
         return distribution
 

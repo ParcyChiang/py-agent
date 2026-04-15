@@ -1,7 +1,38 @@
 # utils/__init__.py
 from datetime import datetime
-from typing import Any
+from typing import Any, Union
 import markdown
+import pandas as pd
+
+
+def safe_float(value: Any, default: float = 0.0) -> float:
+    """安全地将值转换为 float"""
+    try:
+        if pd.isna(value) or value == '' or value is None:
+            return default
+        return float(value)
+    except (ValueError, TypeError):
+        return default
+
+
+def safe_str(value: Any, default: str = '') -> str:
+    """安全地将值转换为字符串"""
+    try:
+        if pd.isna(value) or value is None:
+            return default
+        return str(value)
+    except (ValueError, TypeError):
+        return default
+
+
+def safe_date(value: Any) -> Union[str, None]:
+    """安全地将值转换为日期字符串"""
+    try:
+        if pd.isna(value) or value == '' or value is None:
+            return None
+        return str(value)
+    except (ValueError, TypeError):
+        return None
 
 
 def json_serializer(obj: Any) -> Any:

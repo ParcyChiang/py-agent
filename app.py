@@ -14,6 +14,7 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for, s
 # 直接从models模块导入创建函数和类
 from models import create_data_manager, create_model_handler
 from utils import format_ai_response
+from constants import STATUS_CN_MAP
 from collections import Counter, defaultdict
 from datetime import datetime, date, timedelta
 
@@ -497,31 +498,19 @@ def _generate_chart_data(shipments, daily_stats):
                 except Exception:
                     return None
 
-    # 状态英文到中文的映射
-    status_cn_map = {
-        'delivered': '已送达',
-        'failed_delivery': '配送失败',
-        'in_transit': '运输中',
-        'out_for_delivery': '派件中',
-        'pending': '待处理',
-        'picked_up': '已揽件',
-        'processing': '处理中',
-        'returned': '已退回'
-    }
-    
     # 1. 准备曲面图数据：时间 x 城市 x 状态
     time_city_status_data = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
-    
+
     # 2. 准备散点图数据：重量 x 运费 x 城市
     weight_fee_city_data = []
-    
+
     # 3. 准备线框图数据：客户类型 x 优先级 x 状态
     customer_priority_status_data = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
-    
+
     for shipment in shipments:
         # 转换状态为中文
         status = shipment.get('status', '未知状态')
-        status_cn = status_cn_map.get(status, status)
+        status_cn = STATUS_CN_MAP.get(status, status)
         
         # 处理曲面图数据
         delivery_date = _parse_date_str(shipment.get('actual_delivery'))
