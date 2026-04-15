@@ -1,4 +1,4 @@
-"""3D Surface plot for city x time x status"""
+"""三维曲面图 - 城市 x 时间 x 状态"""
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
@@ -14,31 +14,31 @@ from charts.utils import _parse_date_str
 
 
 def create_surface_plot(shipments):
-    """Generate 3D surface plot data: city x time x status distribution.
+    """生成三维曲面图数据：城市 x 时间 x 状态分布
 
-    Args:
-        shipments: List of shipment dictionaries
+    参数:
+        shipments: 物流数据字典列表
 
-    Returns:
-        dict with 'image_base64' and 'data_info' keys
+    返回:
+        包含 'image_base64' 和 'data_info' 的字典
     """
     configure_matplotlib()
 
-    # Debug info
+    # 调试信息
     print(f"收到 {len(shipments)} 条物流数据")
     if shipments:
         print(f"第一条数据字段: {list(shipments[0].keys())}")
         print(f"第一条数据示例: {shipments[0]}")
 
-    # Prepare surface data: time x city x status
+    # 准备曲面图数据：时间 x 城市 x 状态
     time_city_status_data = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
 
     for shipment in shipments:
-        # Convert status to Chinese
+        # 转换状态为中文
         status = shipment.get('status', '未知状态')
         status_cn = STATUS_CN_MAP.get(status, status)
 
-        # Process surface data
+        # 处理曲面图数据
         delivery_date = _parse_date_str(shipment.get('actual_delivery'))
         if delivery_date is None:
             delivery_date = _parse_date_str(shipment.get('created_at'))
@@ -48,10 +48,9 @@ def create_surface_plot(shipments):
             if city and city != '未知城市' and status_cn and status_cn != '未知状态':
                 time_city_status_data[delivery_date][city][status_cn] += 1
 
-    # Debug info
+    # 调试信息
     print(f"曲面图数据点数量: {sum(sum(sum(city_data.values()) for city_data in day_data.values()) for day_data in time_city_status_data.values())}")
 
-    # Get data range
     if not time_city_status_data:
         return {
             'image_base64': None,
@@ -63,22 +62,22 @@ def create_surface_plot(shipments):
             }
         }
 
-    # Get all dates and sort (surface)
+    # 获取所有日期并排序
     all_dates = sorted(time_city_status_data.keys())
     if len(all_dates) > 7:
-        # If data exceeds 7 days, take the last 7 days
+        # 如果数据超过7天，取最近7天
         last_7_days = all_dates[-7:]
     else:
-        # If data less than 7 days, use all available dates
+        # 如果数据少于7天，使用所有可用日期
         last_7_days = all_dates
 
-    # Define all possible statuses
+    # 定义所有可能的状态
     all_possible_statuses = [
         '已送达', '配送失败', '运输中', '派件中',
         '待处理', '已揽件', '处理中', '已退回'
     ]
 
-    # Surface data preparation
+    # 曲面图数据准备
     all_cities = set()
     all_statuses = set()
     for day_data in time_city_status_data.values():
@@ -87,19 +86,19 @@ def create_surface_plot(shipments):
             for status in day_data[city].keys():
                 all_statuses.add(status)
 
-    # Merge all possible statuses
+    # 合并所有可能的状态
     for status in all_possible_statuses:
         all_statuses.add(status)
 
-    all_cities = sorted(list(all_cities))[:8]  # Limit to first 8 cities
-    all_statuses = sorted(list(all_statuses))  # Allow all statuses
+    all_cities = sorted(list(all_cities))[:8]  # 限制前8个城市
+    all_statuses = sorted(list(all_statuses))  # 允许所有状态
 
-    # Create surface plot data matrix
-    X_surface = np.arange(len(all_cities))  # City indices
-    Y_surface = np.arange(len(last_7_days))  # Time indices
+    # 创建曲面图数据矩阵
+    X_surface = np.arange(len(all_cities))  # 城市索引
+    Y_surface = np.arange(len(last_7_days))  # 时间索引
     X_surface, Y_surface = np.meshgrid(X_surface, Y_surface)
 
-    # Create Z value matrix for each status (surface)
+    # 为每个状态创建Z值矩阵
     surface_data = {}
     for status in all_statuses:
         Z = np.zeros((len(last_7_days), len(all_cities)))
@@ -108,7 +107,7 @@ def create_surface_plot(shipments):
                 Z[i, j] = time_city_status_data[day][city][status]
         surface_data[status] = Z
 
-    # Generate 3D surface plot - dimensions: city x time x status count
+    # 生成三维曲面图
     fig = plt.figure(figsize=(12, 8))
     ax = fig.add_subplot(111, projection='3d')
 
@@ -124,7 +123,7 @@ def create_surface_plot(shipments):
     ax.set_zlabel('数量')
     ax.set_title('三维曲面图 - 城市x时间x状态分布')
 
-    # Set axis labels
+    # 设置坐标轴标签
     ax.set_xticks(range(len(all_cities)))
     ax.set_xticklabels(all_cities, rotation=45)
     ax.set_yticks(range(len(last_7_days)))
@@ -132,7 +131,7 @@ def create_surface_plot(shipments):
 
     plt.tight_layout()
 
-    # Convert to base64 string
+    # 转换为 base64 字符串
     buffer = io.BytesIO()
     plt.savefig(buffer, format='png', dpi=150, bbox_inches='tight')
     buffer.seek(0)

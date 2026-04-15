@@ -1,9 +1,9 @@
-"""Charts utility functions"""
+"""图表工具函数"""
 from datetime import datetime, date
 
 
 def _parse_date_str(date_value):
-    """Parse date string or date object to date."""
+    """解析日期字符串或日期对象为 date 对象"""
     if not date_value:
         return None
     if isinstance(date_value, datetime):

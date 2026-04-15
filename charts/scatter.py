@@ -1,4 +1,4 @@
-"""3D Scatter plot for weight x shipping_fee x city"""
+"""三维散点图 - 重量 x 运费 x 城市"""
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -10,17 +10,17 @@ from utils import configure_matplotlib
 
 
 def create_scatter_plot(shipments):
-    """Generate 3D scatter plot data: weight x shipping_fee x city distribution.
+    """生成三维散点图数据：重量 x 运费 x 城市分布
 
-    Args:
-        shipments: List of shipment dictionaries
+    参数:
+        shipments: 物流数据字典列表
 
-    Returns:
-        dict with 'image_base64' and 'data_info' keys
+    返回:
+        包含 'image_base64' 和 'data_info' 的字典
     """
     configure_matplotlib()
 
-    # Prepare scatter data: weight x shipping_fee x city
+    # 准备散点图数据：重量 x 运费 x 城市
     weight_fee_city_data = []
 
     for shipment in shipments:
@@ -34,7 +34,7 @@ def create_scatter_plot(shipments):
                 'city': city
             })
 
-    # Debug info
+    # 调试信息
     print(f"散点图数据点数量: {len(weight_fee_city_data)}")
 
     if not weight_fee_city_data:
@@ -50,19 +50,19 @@ def create_scatter_plot(shipments):
             }
         }
 
-    # Scatter plot data preparation
+    # 散点图数据准备
     unique_cities = sorted(list(set(item['city'] for item in weight_fee_city_data)))
     city_to_index = {city: i for i, city in enumerate(unique_cities)}
 
-    # Generate 3D scatter plot - dimensions: weight x shipping_fee x city
+    # 生成三维散点图
     fig = plt.figure(figsize=(12, 8))
     ax = fig.add_subplot(111, projection='3d')
 
-    # Assign colors to different cities
+    # 为不同城市分配颜色
     colors = ['red', 'blue', 'green', 'orange', 'purple', 'brown', 'pink', 'cyan']
     city_colors = {city: colors[i % len(colors)] for i, city in enumerate(unique_cities)}
 
-    # Draw scatter plot
+    # 绘制散点图
     for item in weight_fee_city_data:
         weight = item['weight']
         shipping_fee = item['shipping_fee']
@@ -72,7 +72,7 @@ def create_scatter_plot(shipments):
         ax.scatter(weight, shipping_fee, city_idx, c=color,
                  label=item['city'] if city_idx == 0 else "", s=50, alpha=0.7)
 
-    # Show only unique city labels
+    # 只显示唯一的城市标签
     handles, labels = ax.get_legend_handles_labels()
     by_label = dict(zip(labels, handles))
     ax.legend(by_label.values(), by_label.keys())
@@ -82,13 +82,13 @@ def create_scatter_plot(shipments):
     ax.set_zlabel('城市')
     ax.set_title('三维散点图 - 重量x运费x城市分布')
 
-    # Set z-axis labels
+    # 设置 z 轴标签
     ax.set_zticks(range(len(unique_cities)))
     ax.set_zticklabels(unique_cities)
 
     plt.tight_layout()
 
-    # Convert to base64 string
+    # 转换为 base64 字符串
     buffer = io.BytesIO()
     plt.savefig(buffer, format='png', dpi=150, bbox_inches='tight')
     buffer.seek(0)

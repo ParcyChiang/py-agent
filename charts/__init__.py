@@ -1,9 +1,9 @@
-"""Charts module for generating 3D visualization plots.
+"""图表模块 - 生成三维可视化图表
 
-This module provides functions to generate:
-- Surface plot: city x time x status
-- Scatter plot: weight x shipping_fee x city
-- Wireframe plot: customer_type x priority x status
+本模块提供以下功能：
+- 曲面图：城市 x 时间 x 状态
+- 散点图：重量 x 运费 x 城市
+- 线框图：客户类型 x 优先级 x 状态
 """
 from charts.surface import create_surface_plot
 from charts.scatter import create_scatter_plot
@@ -11,28 +11,28 @@ from charts.wireframe import create_wireframe_plot
 
 
 def generate_chart_data(shipments, daily_stats):
-    """Generate 3D chart data from shipments.
+    """从物流数据生成三维图表数据
 
-    Args:
-        shipments: List of shipment dictionaries
-        daily_stats: Daily statistics dictionary (unused but kept for API compatibility)
+    参数:
+        shipments: 物流数据字典列表
+        daily_stats: 每日统计字典（未使用，保留以兼容 API）
 
-    Returns:
-        dict with three base64-encoded images and data_info:
+    返回:
+        包含三个 base64 编码图片和 data_info 的字典:
         {
-            'surface_3d': base64_string or None,
-            'scatter_3d': base64_string or None,
-            'wireframe_3d': base64_string or None,
+            'surface_3d': base64字符串或None,
+            'scatter_3d': base64字符串或None,
+            'wireframe_3d': base64字符串或None,
             'data_info': {...}
         }
     """
     try:
-        # Generate three types of 3D charts
+        # 生成三种类型的三维图
         surface_result = create_surface_plot(shipments)
         scatter_result = create_scatter_plot(shipments)
         wireframe_result = create_wireframe_plot(shipments)
 
-        # Merge data_info from all plots
+        # 合并所有图表的 data_info
         data_info = {}
         data_info.update(surface_result.get('data_info', {}))
         data_info.update(scatter_result.get('data_info', {}))
