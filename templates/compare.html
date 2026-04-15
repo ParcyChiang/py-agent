@@ -68,6 +68,30 @@
         .custom-select input {
             display: block;
         }
+        .input-with-clear {
+            position: relative;
+        }
+        .input-with-clear .form-control {
+            padding-right: 30px;
+        }
+        .clear-btn {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+            display: none;
+        }
+        .clear-btn.show {
+            display: block;
+        }
+        .clear-btn:hover {
+            color: rgba(255, 255, 255, 0.9);
+        }
         .dropdown-menu {
             position: absolute;
             top: 100%;
@@ -399,31 +423,25 @@
             <div class="filter-controls">
                 <div class="form-group">
                     <label for="originFilter">发件地址过滤：</label>
-                    <div class="custom-select">
-                        <select id="originFilter" class="form-control">
-                            <option value="">请选择发件地址</option>
-                        </select>
-                        <input type="text" id="originInput" class="form-control" placeholder="输入发件地址">
+                    <div class="custom-select input-with-clear">
+                        <input type="text" id="originFilter" class="form-control" placeholder="输入或选择发件地址">
+                        <span class="clear-btn" data-target="originFilter">&times;</span>
                         <div id="originDropdown" class="dropdown-menu"></div>
                     </div>
                 </div>
                 <div class="form-group">
                     <label for="destinationFilter">收件地址过滤：</label>
-                    <div class="custom-select">
-                        <select id="destinationFilter" class="form-control">
-                            <option value="">请选择收件地址</option>
-                        </select>
-                        <input type="text" id="destinationInput" class="form-control" placeholder="输入收件地址">
+                    <div class="custom-select input-with-clear">
+                        <input type="text" id="destinationFilter" class="form-control" placeholder="输入或选择收件地址">
+                        <span class="clear-btn" data-target="destinationFilter">&times;</span>
                         <div id="destinationDropdown" class="dropdown-menu"></div>
                     </div>
                 </div>
                 <div class="form-group">
                     <label for="courierFilter">快递公司过滤：</label>
-                    <div class="custom-select">
-                        <select id="courierFilter" class="form-control">
-                            <option value="">请选择快递公司</option>
-                        </select>
-                        <input type="text" id="courierInput" class="form-control" placeholder="输入快递公司">
+                    <div class="custom-select input-with-clear">
+                        <input type="text" id="courierFilter" class="form-control" placeholder="输入或选择快递公司">
+                        <span class="clear-btn" data-target="courierFilter">&times;</span>
                         <div id="courierDropdown" class="dropdown-menu"></div>
                     </div>
                 </div>
@@ -438,7 +456,7 @@
                 </div>
                 <button id="loadComparisonBtn">加载对比数据</button>
             </div>
-            <div id="comparisonResult">点击“加载对比数据”获取对比结果</div>
+            <div id="comparisonResult">点击"加载对比数据"获取对比结果</div>
             <div class="pagination-container" id="pagination"></div>
         </div>
     </div>
@@ -461,15 +479,126 @@
                 generatePagination(savedComparison.total, savedComparison.page, savedComparison.pageSize);
             }
 
+            // 加载筛选下拉选项
+            function loadFilterOptions() {
+                $.getJSON('/api/shipments/filters', function(response) {
+                    if (response.success) {
+                        var origins = response.origins;
+                        var destinations = response.destinations;
+                        var couriers = response.couriers;
+
+                        // 填充下拉菜单（用于输入联想）
+                        fillDropdownMenu('#originDropdown', origins);
+                        fillDropdownMenu('#destinationDropdown', destinations);
+                        fillDropdownMenu('#courierDropdown', couriers);
+                    }
+                });
+            }
+
+            // 填充下拉菜单
+            function fillDropdownMenu(menuId, items) {
+                var html = '';
+                items.forEach(function(item) {
+                    html += '<div class="dropdown-item" data-value="' + item + '">' + item + '</div>';
+                });
+                $(menuId).html(html);
+            }
+
+            // 初始化筛选下拉框
+            loadFilterOptions();
+
+            // 下拉菜单交互
+            $(document).on('click', '.dropdown-item', function() {
+                var value = $(this).data('value');
+                var menuId = $(this).parent().attr('id');
+                var input;
+                if (menuId === 'originDropdown') {
+                    input = $('#originFilter');
+                } else if (menuId === 'destinationDropdown') {
+                    input = $('#destinationFilter');
+                } else if (menuId === 'courierDropdown') {
+                    input = $('#courierFilter');
+                }
+                input.val(value).focus();
+                input.siblings('.clear-btn').addClass('show');
+                $(this).parent().removeClass('show');
+            });
+
+            // 输入框事件 - 显示匹配的下拉菜单
+            $('#originFilter, #destinationFilter, #courierFilter').on('input', function() {
+                var inputId = $(this).attr('id');
+                var menuId;
+
+                if (inputId === 'originFilter') {
+                    menuId = '#originDropdown';
+                } else if (inputId === 'destinationFilter') {
+                    menuId = '#destinationDropdown';
+                } else if (inputId === 'courierFilter') {
+                    menuId = '#courierDropdown';
+                }
+
+                var filter = $(this).val().toLowerCase();
+                var allItems = $(menuId).find('.dropdown-item').map(function() { return $(this).data('value'); }).get();
+                var filtered = allItems.filter(function(item) {
+                    return item.toLowerCase().indexOf(filter) !== -1;
+                });
+
+                fillDropdownMenu(menuId, filtered);
+                if (filtered.length > 0) {
+                    $(menuId).addClass('show');
+                } else {
+                    $(menuId).removeClass('show');
+                }
+            });
+
+            // 聚焦时显示下拉菜单
+            $('#originFilter, #destinationFilter, #courierFilter').on('focus', function() {
+                var inputId = $(this).attr('id');
+                var menuId;
+                if (inputId === 'originFilter') menuId = '#originDropdown';
+                else if (inputId === 'destinationFilter') menuId = '#destinationDropdown';
+                else if (inputId === 'courierFilter') menuId = '#courierDropdown';
+
+                if ($(menuId).children().length > 0) {
+                    $(menuId).addClass('show');
+                }
+            });
+
+            // 输入时显示/隐藏清除按钮
+            $('#originFilter, #destinationFilter, #courierFilter').on('input', function() {
+                var clearBtn = $(this).siblings('.clear-btn');
+                if ($(this).val().length > 0) {
+                    clearBtn.addClass('show');
+                } else {
+                    clearBtn.removeClass('show');
+                }
+            });
+
+            // 清除按钮点击事件
+            $(document).on('click', '.clear-btn', function() {
+                var targetId = $(this).data('target');
+                $('#' + targetId).val('').focus();
+                $(this).removeClass('show');
+            });
+
+            // 点击外部关闭下拉菜单
+            $(document).on('click', function(e) {
+                if (!$(e.target).closest('.custom-select').length) {
+                    $('.dropdown-menu').removeClass('show');
+                }
+            });
+
             // 加载对比数据
             function loadComparisonData(page) {
                 var originFilter = $('#originFilter').val();
                 var destinationFilter = $('#destinationFilter').val();
+                var courierFilter = $('#courierFilter').val();
 
                 $('#comparisonResult').html('加载中...');
                 $.getJSON('/api/shipments/compare', {
                     origin: originFilter,
                     destination: destinationFilter,
+                    courier: courierFilter,
                     page: page,
                     pageSize: pageSize
                 }, function(response) {
@@ -625,10 +754,12 @@
                 var groupData = [];
                 var originFilter = $('#originFilter').val();
                 var destinationFilter = $('#destinationFilter').val();
+                var courierFilter = $('#courierFilter').val();
 
                 $.getJSON('/api/shipments/compare', {
                     origin: originFilter,
                     destination: destinationFilter,
+                    courier: courierFilter,
                     page: page,
                     pageSize: pageSize
                 }, function(response) {

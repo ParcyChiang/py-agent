@@ -1331,6 +1331,28 @@ def compare_shipments():
         return jsonify({'success': False, 'message': f'对比分析失败: {str(e)}'})
 
 
+@app.route('/api/shipments/filters', methods=['GET'])
+def get_shipment_filters():
+    """获取物流筛选过滤选项"""
+    try:
+        shipments, _ = data_manager.get_all_shipments(limit=10000)
+        if isinstance(shipments, tuple):
+            shipments = shipments[0]
+
+        origins = sorted(list(set(s.get('origin', '') for s in shipments if s.get('origin'))))
+        destinations = sorted(list(set(s.get('destination', '') for s in shipments if s.get('destination'))))
+        couriers = sorted(list(set(s.get('courier_company', '') for s in shipments if s.get('courier_company'))))
+
+        return jsonify({
+            'success': True,
+            'origins': origins,
+            'destinations': destinations,
+            'couriers': couriers
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'获取筛选选项失败: {str(e)}'})
+
+
 @app.route('/api/shipments/analyze-comparison', methods=['POST'])
 async def analyze_comparison():
     """使用LLM分析物流对比数据并给出优化方案"""
