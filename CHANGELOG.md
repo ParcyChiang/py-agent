@@ -7,6 +7,7 @@
 5. refactor: 简化 `_parse_date_str` 函数逻辑
 6. refactor: 提取 `configure_matplotlib` 到 `utils/__init__.py`，统一 matplotlib 中文字体配置
 7. refactor: 引入 `get_connection` 上下文管理器，简化约14个方法的数据库连接管理
+8. refactor: 将图表生成逻辑分离到 `charts/` 模块（surface/scatter/wireframe）
 
 ### v1.4
 1. fix: code_generator沙箱环境修复,代码生成与图像生成
