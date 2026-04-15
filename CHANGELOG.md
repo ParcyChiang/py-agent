@@ -1,4 +1,7 @@
 ## py-agent搭建Log
+### v1.4
+1. fix: code_generator沙箱环境修复,代码生成与图像生成
+
 ### v1.3
 1. feat: compare适配毛玻璃效果
 2. feat: compare接收回调适配markdown
