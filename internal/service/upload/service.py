@@ -5,7 +5,7 @@ from typing import Dict, List, Any, Tuple
 
 from internal.service.upload.dao import ShipmentDAO
 from internal.service.login.dao import LogDAO
-from internal.models.model_handler import MiniMaxModelHandler
+from internal.pkg.models.model_handler import AIModelHandler
 from internal.pkg.utils import format_ai_response
 
 
@@ -119,7 +119,7 @@ class ShipmentService:
             }
 
         events = self.shipment_dao.get_shipment_events(shipment_id)
-        model_handler = MiniMaxModelHandler()
+        model_handler = AIModelHandler()
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)

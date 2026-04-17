@@ -1,4 +1,7 @@
 ## py-agent搭建Log
+### v1.11
+1. refactor: 项目目录结构重构，pages→service，models→pkg/models，config→configs
+
 ### v1.10
 1. refactor: 路由重构，各 page 模块的 http.py 统一通过 routes() 方法注册路由，router/__init__.py 简化
 2. refactor: 项目结构从 server/handler/models 重构为 pages/xxx/(http|service|dao) 分层架构

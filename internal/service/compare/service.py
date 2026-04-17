@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Dict, Any
 
 from internal.service.upload.dao import ShipmentDAO
-from internal.models.model_handler import MiniMaxModelHandler
+from internal.pkg.models.model_handler import AIModelHandler
 
 
 class CompareService:
@@ -13,7 +13,7 @@ class CompareService:
 
     def __init__(self):
         self.shipment_dao = ShipmentDAO()
-        self.model_handler = MiniMaxModelHandler()
+        self.model_handler = AIModelHandler()
 
     def get_compare_data(self, origin_filter: str = '', destination_filter: str = '', courier_filter: str = '', page: int = 1, pageSize: int = 20) -> Dict[str, Any]:
         """对比同一收件地址或发件地址的物流信息"""

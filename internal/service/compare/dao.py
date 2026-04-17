@@ -7,7 +7,7 @@ from typing import Dict, List, Any, Optional, Tuple
 import pymysql
 from pymysql.cursors import DictCursor
 
-from internal.pkg.config import Config
+from internal.configs.config import Config
 
 
 class ShipmentDAO:

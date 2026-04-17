@@ -8,7 +8,7 @@ import traceback
 from typing import Dict, Any
 
 from internal.service.upload.dao import ShipmentDAO
-from internal.models.model_handler import MiniMaxModelHandler
+from internal.pkg.models.model_handler import AIModelHandler
 
 
 class CodeGenService:
@@ -16,7 +16,7 @@ class CodeGenService:
 
     def __init__(self):
         self.shipment_dao = ShipmentDAO()
-        self.model_handler = MiniMaxModelHandler()
+        self.model_handler = AIModelHandler()
 
     async def generate_code(self, question: str) -> Dict[str, Any]:
         """生成 Python 代码"""

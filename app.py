@@ -4,7 +4,7 @@ import logging
 
 from flask import Flask
 
-from internal.pkg.config import Config
+from internal.configs.config import Config
 from internal.middleware.logging import setup_logging
 from internal.service.service import register_routes
 

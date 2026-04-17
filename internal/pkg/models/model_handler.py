@@ -11,12 +11,12 @@ def create_model_handler(model_name: str = "MiniMax-M2.7-highspeed"):
     """创建模型处理器，默认使用MiniMax API"""
     api_key = os.getenv("MINIMAX_API_KEY")
     if api_key:
-        return MiniMaxModelHandler(model_name, api_key)
-    raise ValueError("未配置MINIMAX_API_KEY")
+        return AIModelHandler(model_name, api_key)
+    raise ValueError("未配置AI_API_KEY")
 
 
-class MiniMaxModelHandler:
-    """MiniMax API模型处理器"""
+class AIModelHandler:
+    """AI API模型处理器"""
 
     def __init__(self, model_name: str = "MiniMax-M2.7-highspeed", api_key: str = None):
         self.model_name = model_name
