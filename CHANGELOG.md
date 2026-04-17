@@ -1,4 +1,9 @@
 ## py-agent搭建Log
+### v1.10
+1. refactor: 路由重构，各 page 模块的 http.py 统一通过 routes() 方法注册路由，router/__init__.py 简化
+2. refactor: 项目结构从 server/handler/models 重构为 pages/xxx/(http|service|dao) 分层架构
+3. fix: 修复日报中心模板使用 /analyze 接口的问题，改为 /report
+
 ### v1.9
 1. fix: 修复 `login_required` 装饰器不支持 async 函数的问题，对比分析等功能恢复正常
 
