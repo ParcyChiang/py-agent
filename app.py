@@ -6,7 +6,7 @@ from flask import Flask
 
 from internal.pkg.config import Config
 from internal.middleware.logging import setup_logging
-from internal.router import register_routes
+from internal.service.service import register_routes
 
 # 设置日志
 setup_logging()
@@ -20,7 +20,7 @@ app.config['MAX_CONTENT_LENGTH'] = Config.MAX_CONTENT_LENGTH
 
 def init_database():
     """初始化数据库（如果需要）"""
-    from internal.pages.upload.dao import ShipmentDAO
+    from internal.service.upload.dao import ShipmentDAO
     import pymysql
     import contextlib
 
