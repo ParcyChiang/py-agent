@@ -1,0 +1,54 @@
+.table-pagination {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+}
+.pagination-btn {
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 5px 10px;
+    margin: 0 5px;
+    cursor: pointer;
+    border-radius: 4px;
+    color: #fff;
+}
+.pagination-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+.pagination-btn.active {
+    background: rgba(22, 93, 255, 0.8);
+    color: white;
+}
+.pagination-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+.total-info {
+    color: rgba(255, 255, 255, 0.8);
+}
+.page-buttons {
+    display: flex;
+    gap: 4px;
+}
+.jump-to-page {
+    display: flex;
+    align-items: center;
+    color: rgba(255, 255, 255, 0.8);
+}
+#shipmentsList table {
+    width: 100%;
+    border-collapse: collapse;
+}
+#shipmentsList th, #shipmentsList td {
+    padding: 10px;
+    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+#shipmentsList th {
+    background: rgba(255, 255, 255, 0.1);
+}

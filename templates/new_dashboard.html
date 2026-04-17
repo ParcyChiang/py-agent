@@ -4,185 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>物流数据动态看板</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- ECharts -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/pages/new_dashboard.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
-    <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
-    <style>
-        body {
-            font-family: 'Microsoft YaHei', Arial, sans-serif;
-        }
-        .dashboard-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-            position: relative;
-        }
-        .dashboard-header {
-            background: rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            padding: 20px;
-            margin-bottom: 20px;
-            position: relative;
-        }
-        .chart-container {
-            height: 400px;
-            margin-bottom: 20px;
-        }
-        .metrics-container {
-            background: rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            padding: 20px;
-            margin-bottom: 20px;
-            position: relative;
-            overflow: hidden;
-        }
-        .metric-cards {
-            display: flex;
-            transition: transform 0.5s ease;
-        }
-        .metric-card {
-            flex: 0 0 23%;
-            background: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            padding: 20px;
-            margin: 0 1%;
-            text-align: center;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-        }
-        .metric-value {
-            font-size: 24px;
-            font-weight: bold;
-            margin: 10px 0;
-        }
-        .metric-trend {
-            font-size: 14px;
-            margin-top: 10px;
-        }
-        .trend-up {
-            color: #28a745;
-        }
-        .trend-down {
-            color: #dc3545;
-        }
-        .carousel-controls {
-            position: absolute;
-            top: 50%;
-            width: 100%;
-            transform: translateY(-50%);
-            display: flex;
-            justify-content: space-between;
-            padding: 0 10px;
-        }
-        .carousel-control {
-            background: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-        }
-        .table-container {
-            background: rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-        .table-controls {
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .table-pagination {
-            margin-top: 20px;
-            display: flex;
-            justify-content: center;
-        }
-        .pagination-btn {
-            background: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            padding: 5px 10px;
-            margin: 0 5px;
-            cursor: pointer;
-            border-radius: 4px;
-        }
-        .pagination-btn.active {
-            background: rgba(22, 93, 255, 0.8);
-            color: white;
-        }
-        .refresh-indicator {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            font-size: 12px;
-            color: rgba(255, 255, 255, 0.8);
-        }
-        .dashboard-container > h1 {
-            color: white;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-        }
-        .dashboard-container h2 {
-            color: white;
-        }
-        .dashboard-container label {
-            color: white;
-        }
-        .dashboard-container .form-control {
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: white;
-        }
-        .dashboard-container .form-control option {
-            background: #1a1a2e;
-            color: white;
-        }
-        .dashboard-container .metric-card {
-            color: white;
-        }
-        .dashboard-container .metric-name {
-            color: rgba(255, 255, 255, 0.8);
-        }
-        .dashboard-container .metric-value {
-            color: white;
-        }
-        .dashboard-container .badge {
-            color: white;
-        }
-    </style>
 </head>
 <body>
-    <script src="{{ url_for('static', filename='js/liquid-glass.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/user_header.js') }}"></script>
     <div class="user-header">
         <span class="user-info">
             <span id="currentUser"></span>
@@ -209,6 +40,9 @@
             </div>
         </nav>
     </div>
+
+    <script src="{{ url_for('static', filename='js/liquid-glass.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/user_header.js') }}"></script>
 
     <div class="dashboard-container">
         <h1 class="text-center mb-4">物流数据动态看板</h1>
@@ -289,11 +123,7 @@
             <div class="refresh-indicator" id="tableRefresh">最后更新：2026-02-24 12:00:00</div>
         </div>
     </div>
-    </div>
 
     <script src="{{ url_for('static', filename='js/pages/new_dashboard.js') }}"></script>
-
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

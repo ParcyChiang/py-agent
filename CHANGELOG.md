@@ -1,4 +1,7 @@
 ## py-agent搭建Log
+### v1.13
+1. refactor: 模板内联 CSS 提取到 static/css/pages/，与 JS 目录结构统一
+
 ### v1.12
 1. refactor: 模板内联 JS 提取到 static/js/pages/，公共 JS 移至 static/js/
 

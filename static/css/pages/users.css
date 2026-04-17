@@ -1,0 +1,125 @@
+.users-section {
+    background: rgba(20, 25, 45, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(100, 130, 200, 0.3);
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+.users-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid rgba(100, 130, 200, 0.2);
+}
+.users-header h3 {
+    color: white;
+    margin: 0;
+}
+.btn-refresh {
+    padding: 8px 16px;
+    background: rgba(30, 120, 200, 0.8);
+    color: white;
+    border: 1px solid rgba(100, 180, 255, 0.4);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+.btn-refresh:hover {
+    background: rgba(40, 140, 220, 0.9);
+}
+.users-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.users-table th,
+.users-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid rgba(100, 130, 200, 0.15);
+    color: rgba(255, 255, 255, 0.9);
+}
+.users-table th {
+    background: rgba(30, 40, 70, 0.8);
+    font-weight: 600;
+    color: white;
+}
+.users-table tr:hover td {
+    background: rgba(60, 80, 140, 0.3);
+}
+.user-role {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 13px;
+}
+.user-role.admin {
+    background: rgba(200, 60, 60, 0.4);
+    color: #ff6b6b;
+}
+.user-role.user {
+    background: rgba(30, 120, 200, 0.4);
+    color: #60a5fa;
+}
+.btn-delete {
+    padding: 6px 12px;
+    background: rgba(200, 60, 60, 0.8);
+    color: white;
+    border: 1px solid rgba(255, 100, 100, 0.4);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.3s ease;
+}
+.btn-delete:hover {
+    background: rgba(220, 70, 70, 0.9);
+}
+.btn-delete:disabled {
+    background: rgba(100, 100, 100, 0.5);
+    cursor: not-allowed;
+}
+.log-time {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.6);
+}
+.no-users {
+    text-align: center;
+    padding: 40px;
+    color: rgba(255, 255, 255, 0.6);
+}
+.loading {
+    text-align: center;
+    padding: 40px;
+    color: rgba(255, 255, 255, 0.6);
+}
+.toast {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    padding: 12px 24px;
+    border-radius: 8px;
+    color: white;
+    font-size: 14px;
+    z-index: 2000;
+    animation: slideIn 0.3s ease;
+}
+.toast.success {
+    background: rgba(34, 197, 94, 0.9);
+}
+.toast.error {
+    background: rgba(239, 68, 68, 0.9);
+}
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
