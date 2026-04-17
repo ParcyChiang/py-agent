@@ -1,9 +1,10 @@
 # pages/new_dashboard/http.py
 """动态看板页面 HTTP 处理器"""
-from flask import request
+from flask import request, render_template
 
 from internal.pages.new_dashboard.service import DashboardService
 from internal.pkg.response import success, error
+from internal.middleware import login_required
 
 
 class NewDashboardHttp:
@@ -11,6 +12,19 @@ class NewDashboardHttp:
 
     def __init__(self):
         self.service = DashboardService()
+
+    def routes(self, app):
+        """注册动态看板路由"""
+        # 页面路由
+        app.add_url_rule('/page/new_dashboard', endpoint='page_new_dashboard', view_func=login_required(self.page_new_dashboard))
+        # API路由
+        app.add_url_rule('/api/dashboard/trend', endpoint='dashboard_trend', view_func=login_required(self.get_trend), methods=['GET'])
+        app.add_url_rule('/api/dashboard/metrics', endpoint='dashboard_metrics', view_func=login_required(self.get_metrics), methods=['GET'])
+        app.add_url_rule('/api/dashboard/table', endpoint='dashboard_table', view_func=login_required(self.get_table), methods=['GET'])
+
+    def page_new_dashboard(self):
+        """动态看板页面"""
+        return render_template('new_dashboard.html')
 
     def get_trend(self):
         """获取趋势数据"""

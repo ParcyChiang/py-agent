@@ -12,72 +12,9 @@ class RegisterHttp:
     def __init__(self):
         self.service = AuthService()
 
-    def login_page(self):
-        """登录页面"""
-        if request.method == 'POST':
-            return self.login()
-        return render_template('login.html')
-
-    def login(self):
-        """登录 API"""
-        data = request.get_json() if request.is_json else request.form
-        username = data.get('username', '').strip()
-        password = data.get('password', '')
-
-        if not username or not password:
-            if request.is_json:
-                return error('请输入用户名和密码')
-            return render_template('login.html', error='请输入用户名和密码')
-
-        success_flag, user, message = self.service.login(username, password, request.remote_addr)
-
-        if success_flag:
-            session['user_id'] = user['id']
-            session['username'] = user['username']
-            session['role'] = user['role']
-
-            if request.is_json:
-                return success(
-                    message='登录成功',
-                    data={'username': user['username'], 'role': user['role']}
-                )
-            return redirect(url_for('index'))
-        else:
-            if request.is_json:
-                return error(message)
-            return render_template('login.html', error=message)
-
-    def logout(self):
-        """登出"""
-        if 'user_id' in session:
-            self.service.log_dao.add_log(
-                session['user_id'],
-                session['username'],
-                '登出',
-                '用户退出系统',
-                request.remote_addr
-            )
-        session.clear()
-
-        if request.is_json:
-            return success(message='已登出')
-        return redirect(url_for('login'))
-
-    def api_logout(self):
-        """API 登出"""
-        session.clear()
-        return success(message='已登出')
-
-    def get_current_user(self):
-        """获取当前用户"""
-        if 'user_id' not in session:
-            return error('未登录', 401)
-
-        user = self.service.get_user_by_id(session['user_id'])
-        if not user:
-            return error('获取用户信息失败', 500)
-
-        return success(data={'user': user})
+    def routes(self, app):
+        """注册注册路由"""
+        app.add_url_rule('/register', endpoint='register', view_func=self.register_page, methods=['GET', 'POST'])
 
     def register_page(self):
         """注册页面"""
@@ -109,25 +46,3 @@ class RegisterHttp:
             return redirect(url_for('login'))
         else:
             return render_template('register.html', error=message)
-
-    def api_login(self):
-        """API 登录"""
-        data = request.get_json()
-        username = data.get('username', '').strip()
-        password = data.get('password', '')
-
-        if not username or not password:
-            return error('请输入用户名和密码')
-
-        success_flag, user, message = self.service.login(username, password, request.remote_addr)
-
-        if success_flag:
-            session['user_id'] = user['id']
-            session['username'] = user['username']
-            session['role'] = user['role']
-            return success(
-                message='登录成功',
-                data={'username': user['username'], 'role': user['role']}
-            )
-        else:
-            return error(message)

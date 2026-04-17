@@ -4,6 +4,7 @@ from flask import request, session, redirect, url_for, render_template
 
 from internal.pages.login.service import AuthService
 from internal.pkg.response import success, error
+from internal.middleware import login_required
 
 
 class LoginHttp:
@@ -11,6 +12,14 @@ class LoginHttp:
 
     def __init__(self):
         self.service = AuthService()
+
+    def routes(self, app):
+        """注册认证路由"""
+        app.add_url_rule('/login', endpoint='login', view_func=self.login_page, methods=['GET', 'POST'])
+        app.add_url_rule('/logout', endpoint='logout', view_func=self.logout)
+        app.add_url_rule('/api/login', endpoint='api_login', view_func=self.api_login, methods=['POST'])
+        app.add_url_rule('/api/logout', endpoint='api_logout', view_func=self.api_logout, methods=['POST'])
+        app.add_url_rule('/api/current_user', endpoint='api_current_user', view_func=self.get_current_user, methods=['GET'])
 
     def login_page(self):
         """登录页面"""

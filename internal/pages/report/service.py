@@ -36,11 +36,9 @@ class ReportService:
         finally:
             loop.close()
 
-        analysis_html = format_ai_response(analysis['analysis'])
         report_html = format_ai_response(daily_report['report'])
 
         return {
             'success': True,
-            'analysis': analysis_html,
             'daily_report': report_html
         }

@@ -1,9 +1,10 @@
 # pages/upload/http.py
 """上传页面 HTTP 处理器"""
-from flask import request, session
+from flask import request, session, render_template
 
 from internal.pages.upload.service import ShipmentService
 from internal.pkg.response import success, error
+from internal.middleware import login_required
 
 
 class UploadHttp:
@@ -11,6 +12,20 @@ class UploadHttp:
 
     def __init__(self):
         self.service = ShipmentService()
+
+    def routes(self, app):
+        """注册上传路由"""
+        # 页面路由
+        app.add_url_rule('/page/upload', endpoint='page_upload', view_func=login_required(self.page_upload))
+        # API路由
+        app.add_url_rule('/upload', endpoint='upload_file', view_func=login_required(self.upload), methods=['POST'])
+        app.add_url_rule('/delete_csv', endpoint='delete_csv', view_func=login_required(self.delete_csv), methods=['POST'])
+        app.add_url_rule('/shipments', endpoint='get_shipments', view_func=self.get_shipments, methods=['GET'])
+        app.add_url_rule('/shipment/<shipment_id>', endpoint='get_shipment', view_func=self.get_shipment, methods=['GET'])
+
+    def page_upload(self):
+        """上传页面"""
+        return render_template('upload.html')
 
     def get_shipments(self):
         """获取物流列表"""
@@ -73,21 +88,5 @@ class UploadHttp:
 
         if result.get('success'):
             return success(message=result.get('message'))
-        else:
-            return error(result.get('message'))
-
-    def get_chart_data(self):
-        """获取图表数据"""
-        result = self.service.get_chart_data()
-
-        if result.get('success'):
-            shipments, _ = self.service.get_shipments(limit=10000)
-            return success(data={
-                'statistics': result.get('statistics'),
-                'summary': {
-                    'total_records': len(shipments),
-                    'status_distribution': result.get('summary', {}).get('status_distribution', {})
-                }
-            })
         else:
             return error(result.get('message'))
