@@ -1,5 +1,5 @@
-# internal/server/code_gen.py
-"""代码生成业务逻辑层"""
+# pages/code_generator/service.py
+"""代码生成页面服务层"""
 import asyncio
 import sys
 import io
@@ -7,12 +7,12 @@ import builtins
 import traceback
 from typing import Dict, Any
 
-from internal.models.shipment import ShipmentDAO
+from internal.pages.upload.dao import ShipmentDAO
 from internal.models.model_handler import MiniMaxModelHandler
 
 
 class CodeGenService:
-    """代码生成业务服务"""
+    """代码生成服务"""
 
     def __init__(self):
         self.shipment_dao = ShipmentDAO()
@@ -33,7 +33,6 @@ class CodeGenService:
 
         code = await self.model_handler.generate_response(prompt, context)
 
-        # 清理代码
         if code.startswith('```python'):
             code = code[9:]
         if code.startswith('```'):
@@ -43,10 +42,7 @@ class CodeGenService:
 
         code = code.strip()
 
-        return {
-            'success': True,
-            'code': code
-        }
+        return {'success': True, 'code': code}
 
     def execute_code(self, code: str) -> Dict[str, Any]:
         """执行 Python 代码"""
@@ -102,10 +98,7 @@ class CodeGenService:
             error = captured_error.getvalue()
 
             if error:
-                return {
-                    'success': False,
-                    'error': f'执行错误:\n{error}'
-                }
+                return {'success': False, 'error': f'执行错误:\n{error}'}
 
             image_data = None
             for key in ['img_base64', 'image_base64', 'img_data', 'img_buffer']:
@@ -125,10 +118,7 @@ class CodeGenService:
                             image_data = val
                             break
 
-            result = {
-                'success': True,
-                'output': output or '代码执行成功，无输出内容'
-            }
+            result = {'success': True, 'output': output or '代码执行成功，无输出内容'}
             if image_data:
                 result['image'] = image_data
 
@@ -136,10 +126,7 @@ class CodeGenService:
 
         except Exception as e:
             error_msg = f'代码执行异常:\n{str(e)}\n\n{traceback.format_exc()}'
-            return {
-                'success': False,
-                'error': error_msg
-            }
+            return {'success': False, 'error': error_msg}
 
         finally:
             sys.stdout = old_stdout

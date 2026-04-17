@@ -1,4 +1,4 @@
-# models/model_handler.py
+# internal/models/model_handler.py
 """AI 模型处理器"""
 import os
 import logging
@@ -48,11 +48,9 @@ class MiniMaxModelHandler:
 
             result = response.json()
             logger.info(f"API响应: {result}")
-            # Anthropic兼容格式
             if "content" in result:
                 content = result["content"]
                 if isinstance(content, list):
-                    # 过滤掉thinking，只取text
                     text_parts = []
                     for item in content:
                         item_type = item.get("type", "")

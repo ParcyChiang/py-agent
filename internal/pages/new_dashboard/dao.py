@@ -1,5 +1,5 @@
-# models/shipment.py
-"""物流数据访问层"""
+# pages/new_dashboard/dao.py
+"""上传页面 DAO 层"""
 import json
 import contextlib
 from typing import Dict, List, Any, Optional, Tuple
@@ -34,7 +34,6 @@ class ShipmentDAO:
 
     @contextlib.contextmanager
     def get_connection(self, with_db: bool = True):
-        """数据库连接上下文管理器"""
         conn = self._get_connection(with_db)
         try:
             yield conn

@@ -1,5 +1,5 @@
-# models/log.py
-"""操作日志数据访问层"""
+# pages/admin_log/dao.py
+"""管理员日志页面 DAO 层"""
 import contextlib
 from typing import Dict, List
 
@@ -33,42 +33,17 @@ class LogDAO:
 
     @contextlib.contextmanager
     def get_connection(self, with_db: bool = True):
-        """数据库连接上下文管理器"""
         conn = self._get_connection(with_db)
         try:
             yield conn
         finally:
             conn.close()
 
-    def add_log(self, user_id: int, username: str, action: str, detail: str = "", ip_address: str = "") -> None:
-        """添加操作日志"""
-        with self.get_connection() as conn:
-            with conn.cursor() as cursor:
-                try:
-                    cursor.execute(
-                        "INSERT INTO operation_logs (user_id, username, action, detail, ip_address) VALUES (%s, %s, %s, %s, %s)",
-                        (user_id, username, action, detail, ip_address)
-                    )
-                    conn.commit()
-                except Exception as e:
-                    print(f"添加日志失败: {e}")
-
     def get_all_logs(self, limit: int = 100) -> List[Dict]:
-        """获取所有操作日志"""
         with self.get_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute(
                     "SELECT id, user_id, username, action, detail, ip_address, timestamp FROM operation_logs ORDER BY timestamp DESC LIMIT %s",
                     (limit,)
-                )
-                return cursor.fetchall()
-
-    def get_user_logs(self, user_id: int, limit: int = 50) -> List[Dict]:
-        """获取指定用户的操作日志"""
-        with self.get_connection() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute(
-                    "SELECT id, user_id, username, action, detail, ip_address, timestamp FROM operation_logs WHERE user_id = %s ORDER BY timestamp DESC LIMIT %s",
-                    (user_id, limit)
                 )
                 return cursor.fetchall()

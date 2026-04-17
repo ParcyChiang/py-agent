@@ -1,12 +1,12 @@
-# internal/handler/analysis.py
-"""分析 HTTP 处理器"""
+# pages/analysis_report/http.py
+"""分析报告页面 HTTP 处理器"""
 from flask import request
 
-from internal.server import AnalysisService
+from internal.pages.analysis_report.service import AnalysisService
 from internal.pkg.response import success, error
 
 
-class AnalysisHandler:
+class AnalysisReportHttp:
     """分析 HTTP 处理器"""
 
     def __init__(self):
@@ -35,8 +35,7 @@ class AnalysisHandler:
 
     def get_chart_data(self):
         """获取图表数据（不调用AI）"""
-        from internal.server import ShipmentService
-
+        from internal.pages.upload.service import ShipmentService
         shipment_service = ShipmentService()
         result = shipment_service.get_chart_data()
 

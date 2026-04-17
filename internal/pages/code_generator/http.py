@@ -1,13 +1,13 @@
-# internal/handler/code_gen.py
-"""代码生成 HTTP 处理器"""
+# pages/code_generator/http.py
+"""代码生成页面 HTTP 处理器"""
 import asyncio
 from flask import request
 
-from internal.server import CodeGenService
+from internal.pages.code_generator.service import CodeGenService
 from internal.pkg.response import success, error
 
 
-class CodeGenHandler:
+class CodeGeneratorHttp:
     """代码生成 HTTP 处理器"""
 
     def __init__(self):

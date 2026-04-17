@@ -1,12 +1,12 @@
-# internal/handler/auth.py
-"""认证 HTTP 处理器"""
+# pages/register/http.py
+"""注册页面 HTTP 处理器"""
 from flask import request, session, redirect, url_for, render_template
 
-from internal.server import AuthService
+from internal.pages.register.service import AuthService
 from internal.pkg.response import success, error
 
 
-class AuthHandler:
+class RegisterHttp:
     """认证 HTTP 处理器"""
 
     def __init__(self):

@@ -1,12 +1,12 @@
-# internal/handler/shipment.py
-"""物流 HTTP 处理器"""
+# pages/upload/http.py
+"""上传页面 HTTP 处理器"""
 from flask import request, session
 
-from internal.server import ShipmentService
+from internal.pages.upload.service import ShipmentService
 from internal.pkg.response import success, error
 
 
-class ShipmentHandler:
+class UploadHttp:
     """物流 HTTP 处理器"""
 
     def __init__(self):
@@ -29,15 +29,7 @@ class ShipmentHandler:
 
     def get_shipment(self, shipment_id):
         """获取单个物流详情"""
-        from internal.server import AnalysisService
-
-        shipment, events = self.service.get_shipment_by_id(shipment_id)
-        if not shipment:
-            return error('未找到指定的物流信息', 404)
-
-        analysis_service = AnalysisService()
-        analysis_result = analysis_service.analyze_shipment(shipment_id)
-
+        analysis_result = self.service.analyze_shipment(shipment_id)
         return success(data=analysis_result)
 
     def upload(self):
@@ -90,14 +82,11 @@ class ShipmentHandler:
 
         if result.get('success'):
             shipments, _ = self.service.get_shipments(limit=10000)
-            from internal.server import AnalysisService
-            analysis_service = AnalysisService()
-
             return success(data={
                 'statistics': result.get('statistics'),
                 'summary': {
                     'total_records': len(shipments),
-                    'status_distribution': analysis_service.model_handler._get_status_distribution(shipments)
+                    'status_distribution': result.get('summary', {}).get('status_distribution', {})
                 }
             })
         else:

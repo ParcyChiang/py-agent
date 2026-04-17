@@ -54,7 +54,7 @@
 
             $('#genReportBtn').on('click', function() {
                 $('#dailyReportContent').html('生成中...');
-                $.getJSON('/analyze', function(response) {
+                $.getJSON('/analysis_report', function(response) {
                     if (response.success) {
                         $('#dailyReportContent').html(response.daily_report);
                         cacheSet('daily_report', response.daily_report);

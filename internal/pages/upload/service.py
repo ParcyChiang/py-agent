@@ -1,14 +1,16 @@
-# internal/server/shipment.py
-"""物流业务逻辑层"""
+# pages/upload/service.py
+"""上传页面服务层"""
+import asyncio
 from typing import Dict, List, Any, Tuple
 
-from internal.models.shipment import ShipmentDAO
-from internal.models.log import LogDAO
-from internal.pkg.charts import generate_chart_data
+from internal.pages.upload.dao import ShipmentDAO
+from internal.pages.login.dao import LogDAO
+from internal.models.model_handler import MiniMaxModelHandler
+from internal.pkg.utils import format_ai_response
 
 
 class ShipmentService:
-    """物流业务服务"""
+    """物流服务"""
 
     def __init__(self):
         self.shipment_dao = ShipmentDAO()
@@ -75,6 +77,7 @@ class ShipmentService:
         daily_trend = self.shipment_dao.get_daily_trend()
         status_distribution = self.get_status_distribution()
 
+        from internal.pkg.charts import generate_chart_data
         chart_data = generate_chart_data(shipments, daily_stats)
 
         return {
@@ -94,7 +97,6 @@ class ShipmentService:
 
     def get_status_distribution(self) -> Dict[str, int]:
         """获取状态分布"""
-        from collections import Counter
         from internal.pkg.constants import STATUS_CN_MAP
 
         shipments, _ = self.shipment_dao.get_all_shipments(limit=10000)
@@ -106,3 +108,38 @@ class ShipmentService:
             distribution[cn_status] = distribution.get(cn_status, 0) + 1
 
         return distribution
+
+    def analyze_shipment(self, shipment_id: str) -> Dict[str, Any]:
+        """分析单个物流"""
+        shipment = self.shipment_dao.get_shipment_by_id(shipment_id)
+        if not shipment:
+            return {
+                'success': False,
+                'message': '未找到指定的物流信息'
+            }
+
+        events = self.shipment_dao.get_shipment_events(shipment_id)
+        model_handler = MiniMaxModelHandler()
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            analysis = loop.run_until_complete(
+                model_handler.analyze_shipment_data(shipment)
+            )
+            prediction = loop.run_until_complete(
+                model_handler.predict_delivery_time(shipment, events)
+            )
+        finally:
+            loop.close()
+
+        analysis_html = format_ai_response(analysis['analysis'])
+        prediction_html = format_ai_response(prediction['prediction'])
+
+        return {
+            'success': True,
+            'shipment': shipment,
+            'events': events,
+            'analysis': analysis_html,
+            'prediction': prediction_html
+        }

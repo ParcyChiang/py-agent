@@ -1,12 +1,12 @@
-# internal/handler/dashboard.py
-"""动态看板 HTTP 处理器"""
+# pages/new_dashboard/http.py
+"""动态看板页面 HTTP 处理器"""
 from flask import request
 
-from internal.server import DashboardService
+from internal.pages.new_dashboard.service import DashboardService
 from internal.pkg.response import success, error
 
 
-class DashboardHandler:
+class NewDashboardHttp:
     """动态看板 HTTP 处理器"""
 
     def __init__(self):
