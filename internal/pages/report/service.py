@@ -8,15 +8,15 @@ from internal.models.model_handler import MiniMaxModelHandler
 from internal.pkg.utils import format_ai_response
 
 
-class AnalysisService:
+class ReportService:
     """AI分析服务"""
 
     def __init__(self):
         self.shipment_dao = ShipmentDAO()
         self.model_handler = MiniMaxModelHandler()
 
-    def get_analysis_report(self) -> Dict[str, Any]:
-        """生成运营分析报告"""
+    def get_report(self) -> Dict[str, Any]:
+        """生成日报"""
         shipments, _ = self.shipment_dao.get_all_shipments(limit=10000)
 
         if not shipments:
@@ -30,9 +30,6 @@ class AnalysisService:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            analysis = loop.run_until_complete(
-                self.model_handler.analyze_bulk_data(shipments)
-            )
             daily_report = loop.run_until_complete(
                 self.model_handler.generate_daily_report(daily_stats, shipments)
             )

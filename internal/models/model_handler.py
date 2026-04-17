@@ -144,7 +144,7 @@ class MiniMaxModelHandler:
     async def generate_daily_report(self, daily_stats, shipments_data):
         """生成每日报告"""
         prompt = f"""
-        生成运营日报（面向管理层的一页纸）：
+        生成每日日报（面向管理层的一页纸）：
 
         核心统计：发货{daily_stats.get('total_shipments', 0)}，交付{daily_stats.get('delivered', 0)}，
                  延迟{daily_stats.get('delayed', 0)}，准时率{daily_stats.get('on_time_rate', 0):.1f}%

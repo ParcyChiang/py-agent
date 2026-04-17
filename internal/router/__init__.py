@@ -161,10 +161,20 @@ def register_routes(app):
     def get_shipment(shipment_id):
         return upload_http.get_shipment(shipment_id)
 
+    @app.route('/analyze', methods=['GET'])
+    @login_required
+    def analyze_data():
+        return analyze_http.analyze()
+
+    @app.route('/report', methods=['GET'])
+    @login_required
+    def report_data():
+        return report_http.report()
+
     @app.route('/analysis_report', methods=['GET'])
     @login_required
     def get_analysis_report():
-        return report_http.get_analysis_report()
+        return analysis_report_http.get_analysis_report()
 
     @app.route('/chart_data', methods=['GET'])
     def get_chart_data():

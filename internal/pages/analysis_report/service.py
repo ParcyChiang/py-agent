@@ -8,9 +8,8 @@ from internal.models.model_handler import MiniMaxModelHandler
 from internal.pkg.utils import format_ai_response
 
 
-class AnalysisService:
+class AnalysisReportService:
     """AI分析服务"""
-
     def __init__(self):
         self.shipment_dao = ShipmentDAO()
         self.model_handler = MiniMaxModelHandler()
