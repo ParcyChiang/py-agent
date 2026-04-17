@@ -14,8 +14,8 @@
         <span class="user-info"><span id="currentUser"></span></span>
         <a class="btn-logout" href="/logout">退出</a>
     </div>
-    <script src="{{ url_for('static', filename='liquid-glass.js') }}"></script>
-    <script src="{{ url_for('static', filename='user_header.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/liquid-glass.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/user_header.js') }}"></script>
     <div class="container">
         <header>
             <h1>日志中心</h1>
@@ -45,25 +45,6 @@
     </div>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script>
-        $(function(){
-            $('#loadLogsBtn').on('click', function() {
-                $('#logsContent').html('加载中...');
-                $.getJSON('/admin_log', function(response) {
-                    if (response.success) {
-                        var logsHtml = '';
-                        response.logs.forEach(function(log) {
-                            logsHtml += '<p><strong>' + log.timestamp + '</strong> - ' + log.user + ' - ' + log.action + '</p>';
-                        });
-                        $('#logsContent').html(logsHtml);
-                    } else {
-                        $('#logsContent').html('<div class="error">' + response.message + '</div>');
-                    }
-                }).fail(function() {
-                    $('#logsContent').html('<div class="error">加载失败，请重试</div>');
-                });
-            });
-        });
-    </script>
+    <script src="{{ url_for('static', filename='js/pages/admin_log.js') }}"></script>
 </body>
 </html>

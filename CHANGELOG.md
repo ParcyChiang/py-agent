@@ -1,4 +1,7 @@
 ## py-agent搭建Log
+### v1.12
+1. refactor: 模板内联 JS 提取到 static/js/pages/，公共 JS 移至 static/js/
+
 ### v1.11
 1. refactor: 项目目录结构重构，pages→service，models→pkg/models，config→configs
 
