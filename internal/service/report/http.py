@@ -23,21 +23,11 @@ class ReportHttp:
         # 页面路由
         app.add_url_rule('/page/report', endpoint='page_report', view_func=login_required(self.page_report))
         # API路由
-        app.add_url_rule('/report', endpoint='report', view_func=login_required(self.report), methods=['GET'])
         app.add_url_rule('/report_stream', endpoint='report_stream', view_func=login_required(self.report_stream), methods=['GET'])
 
     def page_report(self):
         """报告页面"""
         return render_template('report.html')
-
-    def report(self):
-        """生成今日日报"""
-        result = self.service.get_report()
-
-        if result.get('success'):
-            return success(data=result)
-        else:
-            return error(result.get('message'))
 
     def report_stream(self):
         """SSE流式生成日报"""
@@ -49,20 +39,17 @@ class ReportHttp:
 
             try:
                 async def stream_result():
-                    full_content = ""
-                    async for chunk in self.service.generate_report_stream():
-                        if chunk['type'] == 'thinking':
-                            yield f"data: {json.dumps({'type': 'thinking', 'content': chunk['content']})}\n\n"
-                        elif chunk['type'] == 'text':
-                            full_content += chunk['content']
-                        elif chunk['type'] == 'done':
-                            from internal.pkg.utils import format_ai_response
-                            report_html = format_ai_response(full_content)
-                            yield f"data: {json.dumps({'type': 'done', 'content': report_html})}\n\n"
+                    async for item in self.service.generate_report_stream_with_format():
+                        if item['type'] == 'thinking':
+                            yield f"data: {json.dumps({'type': 'thinking', 'content': item['content']})}\n\n"
+                        elif item['type'] == 'text':
+                            yield f"data: {json.dumps({'type': 'text', 'content': item['content']})}\n\n"
+                        elif item['type'] == 'done':
+                            yield f"data: {json.dumps({'type': 'done', 'content': item['content']})}\n\n"
                             yield f"data: {json.dumps({'type': 'end'})}\n\n"
                             return
-                        elif chunk['type'] == 'error':
-                            yield f"data: {json.dumps({'type': 'error', 'content': chunk['content']})}\n\n"
+                        elif item['type'] == 'error':
+                            yield f"data: {json.dumps({'type': 'error', 'content': item['content']})}\n\n"
 
                 gen = stream_result()
                 try:

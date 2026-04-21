@@ -15,36 +15,8 @@ class ReportService:
         self.shipment_dao = ShipmentDAO()
         self.model_handler = AIModelHandler()
 
-    def get_report(self) -> Dict[str, Any]:
-        """生成日报"""
-        shipments, _ = self.shipment_dao.get_all_shipments(limit=10000)
-
-        if not shipments:
-            return {
-                'success': False,
-                'message': '没有可分析的数据，请先上传CSV文件'
-            }
-
-        daily_stats = self.shipment_dao.get_daily_stats()
-
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            daily_report = loop.run_until_complete(
-                self.model_handler.generate_daily_report(daily_stats, shipments)
-            )
-        finally:
-            loop.close()
-
-        report_html = format_ai_response(daily_report['report'])
-
-        return {
-            'success': True,
-            'daily_report': report_html
-        }
-
-    async def generate_report_stream(self):
-        """流式生成日报"""
+    async def generate_report_stream_with_format(self):
+        """流式生成日报，返回格式化后的HTML"""
         shipments, _ = self.shipment_dao.get_all_shipments(limit=10000)
 
         if not shipments:
@@ -68,8 +40,12 @@ D. 关键KPI（SLA命中率、滞留件、问题件、装车准点）
 E. 行动清单（≤5条，明确"责任岗位+完成时限"）
 """
 
+        full_content = ""
         async for chunk in self.model_handler.generate_response_stream(prompt, ""):
             if chunk['type'] in ('thinking', 'text', 'error'):
                 yield chunk
+                if chunk['type'] == 'text':
+                    full_content += chunk['content']
 
-        yield {'type': 'done'}
+        report_html = format_ai_response(full_content)
+        yield {'type': 'done', 'content': report_html}
