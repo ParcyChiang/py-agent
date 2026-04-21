@@ -3,7 +3,7 @@
 import asyncio
 from typing import Dict, Any
 
-from internal.service.upload.dao import ShipmentDAO
+from internal.pkg.dao import ShipmentDAO
 from internal.pkg.models.model_handler import AIModelHandler
 from internal.pkg.utils import format_ai_response
 

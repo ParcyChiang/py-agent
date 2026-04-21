@@ -7,7 +7,7 @@ import builtins
 import traceback
 from typing import Dict, Any
 
-from internal.service.upload.dao import ShipmentDAO
+from internal.pkg.dao import ShipmentDAO
 from internal.pkg.models.model_handler import AIModelHandler
 
 
@@ -17,35 +17,6 @@ class CodeGenService:
     def __init__(self):
         self.shipment_dao = ShipmentDAO()
         self.model_handler = AIModelHandler()
-
-    async def generate_code(self, question: str) -> Dict[str, Any]:
-        """生成 Python 代码"""
-        if not question:
-            return {'success': False, 'message': '请输入问题'}
-
-        shipments, _ = self.shipment_dao.get_all_shipments(limit=1000)
-
-        context = self._build_code_generation_context(shipments)
-
-        prompt = f"""用户问题：{question}
-
-请根据上述信息生成Python代码。只返回可运行的Python代码，不要包含任何说明文字、注释或markdown标记。代码应该能够直接在提供的沙箱环境中执行。"""
-
-        response = await self.model_handler.generate_response(prompt, context)
-
-        code = str(response)
-        thinking = response.thinking
-
-        if code.startswith('```python'):
-            code = code[9:]
-        if code.startswith('```'):
-            code = code[3:]
-        if code.endswith('```'):
-            code = code[:-3]
-
-        code = code.strip()
-
-        return {'success': True, 'code': code, 'thinking': thinking}
 
     async def generate_code_stream(self, question: str):
         """流式生成 Python 代码，实时输出 thinking 和 code"""

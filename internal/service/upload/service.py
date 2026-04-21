@@ -2,8 +2,7 @@
 """上传页面服务层"""
 from typing import Dict, List, Any, Tuple
 
-from internal.service.upload.dao import ShipmentDAO
-from internal.service.login.dao import LogDAO
+from internal.pkg.dao import ShipmentDAO, LogDAO
 
 
 class ShipmentService:

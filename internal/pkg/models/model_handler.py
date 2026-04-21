@@ -188,44 +188,6 @@ class AIModelHandler:
             logger.error(f"模型调用失败: {e}")
             yield {"type": "error", "content": f"抱歉，处理您的请求时出现错误: {str(e)}"}
 
-    async def analyze_shipment_data(self, shipment_data):
-        """分析物流数据"""
-        prompt = f"""
-        你是一个大型分拨中心的运营分析员。基于以下货件信息，按物流中心的现实业务给出可执行洞察：
-        {self._format_shipment_data(shipment_data)}
-
-        输出用简洁要点（每点≤20字），包含：
-        1) 运营状态：是否异常、阻塞位置
-        2) 风险预警：延误/错分/逆向等（概率+影响）
-        3) 优先动作：今天需跟进的2-3个动作（含岗位）
-        4) SLA 提醒：是否命中SLA阈值（建议缓解措施）
-        """
-
-        analysis = await self.generate_response(prompt)
-        return {
-            "analysis": analysis,
-            "timestamp": __import__('datetime').datetime.now().isoformat()
-        }
-
-    async def predict_delivery_time(self, shipment_data, historical_data=None):
-        """预测交付时间"""
-        context = "历史数据预测" if historical_data else "当前数据预测"
-
-        prompt = f"""
-        {context}
-
-        当前货物：{shipment_data.get('id')}，{shipment_data.get('origin')}→{shipment_data.get('destination')}
-        状态：{shipment_data.get('status')}，重量：{shipment_data.get('weight')}kg
-
-        请预测交付时间（格式：X天，置信度：X%）
-        """
-
-        prediction = await self.generate_response(prompt)
-        return {
-            "prediction": prediction,
-            "timestamp": __import__('datetime').datetime.now().isoformat()
-        }
-
     def _get_status_distribution(self, shipments_data):
         """获取状态分布"""
         from internal.pkg.constants import STATUS_CN_MAP

@@ -3,7 +3,7 @@
 from datetime import datetime, timedelta
 from typing import Dict, Any
 
-from internal.service.upload.dao import ShipmentDAO
+from internal.pkg.dao import ShipmentDAO
 
 
 class DashboardService:

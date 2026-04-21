@@ -20,7 +20,7 @@ app.config['MAX_CONTENT_LENGTH'] = Config.MAX_CONTENT_LENGTH
 
 def init_database():
     """初始化数据库（如果需要）"""
-    from internal.service.upload.dao import ShipmentDAO
+    from internal.pkg.dao import ShipmentDAO
     import pymysql
     import contextlib
 

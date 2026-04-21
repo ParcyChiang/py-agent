@@ -2,7 +2,7 @@
 """登录页面服务层"""
 from typing import Dict, Optional, Tuple
 
-from internal.service.login.dao import UserDAO, LogDAO
+from internal.pkg.dao import UserDAO, LogDAO
 
 
 class AuthService:
