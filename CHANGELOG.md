@@ -1,4 +1,7 @@
 ## py-agent搭建Log
+### v1.14
+1. feat: ai生成展示思考内容,展示方法待调整
+
 ### v1.13
 1. refactor: 模板内联 CSS 提取到 static/css/pages/，与 JS 目录结构统一
 

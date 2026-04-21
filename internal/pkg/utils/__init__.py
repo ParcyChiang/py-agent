@@ -52,8 +52,11 @@ def json_serializer(obj: Any) -> Any:
     raise TypeError(f"Type {type(obj)} not serializable")
 
 
-def format_ai_response(response: str) -> str:
+def format_ai_response(response) -> str:
     """格式化AI响应，支持Markdown渲染"""
+    # 如果是 AIResponse 对象，转换为字符串
+    if hasattr(response, 'text'):
+        response = str(response)
     # 使用markdown库正确解析markdown
     html = markdown.markdown(
         response,

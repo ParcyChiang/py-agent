@@ -1,10 +1,25 @@
 # internal/models/model_handler.py
 """AI 模型处理器"""
 import os
+import asyncio
 import logging
 import requests
 
 logger = logging.getLogger("LogisticsAgent")
+
+
+class AIResponse:
+    """AI 响应封装，可当字符串使用，同时保留 thinking 内容"""
+
+    def __init__(self, text: str, thinking: str = ""):
+        self.text = text
+        self.thinking = thinking
+
+    def __str__(self):
+        return self.text
+
+    def __repr__(self):
+        return f"AIResponse(text={self.text[:50]}..., thinking={self.thinking[:50]}...)" if self.thinking else f"AIResponse(text={self.text[:50]}...)"
 
 
 def create_model_handler(model_name: str = "MiniMax-M2.7-highspeed"):
@@ -23,7 +38,7 @@ class AIModelHandler:
         self.api_key = api_key or os.getenv("MINIMAX_API_KEY")
         self.api_url = os.getenv("MINIMAX_API_URL", "https://api.minimaxi.com/anthropic/v1/messages")
 
-    async def generate_response(self, prompt: str, context: str = "") -> str:
+    async def generate_response(self, prompt: str, context: str = "") -> AIResponse:
         """使用API生成响应"""
         try:
             full_prompt = f"{context}\n\n{prompt}" if context else prompt
@@ -52,27 +67,100 @@ class AIModelHandler:
                 content = result["content"]
                 if isinstance(content, list):
                     text_parts = []
+                    thinking_parts = []
                     for item in content:
                         item_type = item.get("type", "")
                         if item_type == "text":
                             text_parts.append(item.get("text", ""))
                         elif item_type == "thinking":
-                            logger.info("跳过thinking内容")
-                    return "\n".join(text_parts) if text_parts else str(content)
+                            thinking_parts.append(item.get("thinking", ""))
+                    text = "\n".join(text_parts) if text_parts else str(content)
+                    thinking = "\n".join(thinking_parts)
+                    return AIResponse(text, thinking)
                 elif isinstance(content, str):
-                    return content
+                    return AIResponse(content, "")
             logger.error(f"API响应格式异常: {result}")
-            return f"抱歉，模型返回格式异常"
+            return AIResponse("抱歉，模型返回格式异常", "")
 
         except requests.exceptions.Timeout:
             logger.error("API请求超时")
-            return "抱歉，模型请求超时，请稍后重试"
+            return AIResponse("抱歉，模型请求超时，请稍后重试", "")
         except requests.exceptions.RequestException as e:
             logger.error(f"API请求失败: {e}")
-            return f"抱歉，模型调用失败: {str(e)}"
+            return AIResponse(f"抱歉，模型调用失败: {str(e)}", "")
         except Exception as e:
             logger.error(f"模型调用失败: {e}")
-            return f"抱歉，处理您的请求时出现错误: {str(e)}"
+            return AIResponse(f"抱歉，处理您的请求时出现错误: {str(e)}", "")
+
+    async def generate_response_stream(self, prompt: str, context: str = ""):
+        """使用API生成响应，流式返回thinking和text"""
+        try:
+            full_prompt = f"{context}\n\n{prompt}" if context else prompt
+
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+                "x-api-key": self.api_key,
+                "anthropic-version": "2023-06-01"
+            }
+
+            payload = {
+                "model": self.model_name,
+                "messages": [
+                    {"role": "user", "content": full_prompt}
+                ],
+                "max_tokens": 4096
+            }
+
+            response = requests.post(self.api_url, headers=headers, json=payload, timeout=120)
+            response.raise_for_status()
+
+            result = response.json()
+            logger.info(f"API响应: {result}")
+
+            thinking_parts = []
+            text_parts = []
+
+            if "content" in result:
+                content = result["content"]
+                if isinstance(content, list):
+                    for item in content:
+                        item_type = item.get("type", "")
+                        if item_type == "thinking":
+                            tc = item.get("thinking", "")
+                            if tc:
+                                thinking_parts.append(tc)
+                        elif item_type == "text":
+                            tc = item.get("text", "")
+                            if tc:
+                                text_parts.append(tc)
+                elif isinstance(content, str):
+                    text_parts.append(content)
+
+            # 合并所有 thinking 并逐段 yield（每段50字符模拟打字效果）
+            full_thinking = "".join(thinking_parts)
+            full_text = "".join(text_parts)
+
+            logger.info(f"提取完成，thinking长度: {len(full_thinking)}, text长度: {len(full_text)}")
+
+            for i in range(0, len(full_thinking), 50):
+                chunk = full_thinking[i:i+50]
+                yield {"type": "thinking", "content": chunk}
+                await asyncio.sleep(0.01)
+
+            # 最后 yield text
+            if full_text:
+                yield {"type": "text", "content": full_text}
+
+        except requests.exceptions.Timeout:
+            logger.error("API请求超时")
+            yield {"type": "error", "content": "抱歉，模型请求超时，请稍后重试"}
+        except requests.exceptions.RequestException as e:
+            logger.error(f"API请求失败: {e}")
+            yield {"type": "error", "content": f"抱歉，模型调用失败: {str(e)}"}
+        except Exception as e:
+            logger.error(f"模型调用失败: {e}")
+            yield {"type": "error", "content": f"抱歉，处理您的请求时出现错误: {str(e)}"}
 
     async def analyze_shipment_data(self, shipment_data):
         """分析物流数据"""

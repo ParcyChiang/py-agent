@@ -136,6 +136,8 @@ class CompareService:
         分析要具体、可操作，基于实际物流运营场景。
         """
 
-        analysis = await self.model_handler.generate_response(prompt)
+        response = await self.model_handler.generate_response(prompt)
+        analysis = str(response)
+        thinking = response.thinking
 
-        return {'success': True, 'analysis': analysis}
+        return {'success': True, 'analysis': analysis, 'thinking': thinking}

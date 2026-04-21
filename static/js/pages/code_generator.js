@@ -34,11 +34,17 @@ async function generateCode() {
 
     const loading = document.getElementById('loading');
     const codeContainer = document.getElementById('codeContainer');
+    const thinkingContainer = document.getElementById('thinkingContainer');
+    const thinkingContent = document.getElementById('thinkingContent');
     const executeBtn = document.getElementById('executeBtn');
 
     loading.style.display = 'block';
     codeContainer.style.display = 'none';
+    thinkingContainer.style.display = 'block';
+    thinkingContent.textContent = '正在思考...\n';
+    executeBtn.disabled = true;
 
+    // 使用 fetch + 非流式接口
     try {
         const response = await fetch('/generate_code', {
             method: 'POST',
@@ -50,19 +56,20 @@ async function generateCode() {
 
         const result = await response.json();
 
+        loading.style.display = 'none';
+
         if (result.success) {
+            thinkingContent.textContent = result.thinking || '（无思考过程）';
             document.getElementById('generatedCode').textContent = result.code;
             codeContainer.style.display = 'block';
             executeBtn.disabled = false;
-            // 缓存代码
             cacheSet('generated_code', { question: question, code: result.code });
         } else {
-            alert('生成代码失败：' + result.message);
+            thinkingContent.textContent = '生成失败：' + (result.message || '未知错误');
         }
     } catch (error) {
-        alert('请求失败：' + error.message);
-    } finally {
         loading.style.display = 'none';
+        thinkingContent.textContent = '请求失败：' + error.message;
     }
 }
 
@@ -136,9 +143,11 @@ function clearAll() {
     document.getElementById('questionInput').value = '';
     document.getElementById('generatedCode').textContent = '';
     document.getElementById('executionOutput').textContent = '';
+    document.getElementById('thinkingContent').textContent = '';
     const imageContainer = document.getElementById('imageContainer');
     if (imageContainer) imageContainer.remove();
     document.getElementById('codeContainer').style.display = 'none';
+    document.getElementById('thinkingContainer').style.display = 'none';
     document.getElementById('outputContainer').style.display = 'none';
     document.getElementById('executeBtn').disabled = true;
     cacheRemove('generated_code');
