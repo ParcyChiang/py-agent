@@ -101,3 +101,33 @@ E. 行动清单（≤5条，明确"责任岗位+完成时限"）
                 yield chunk
 
         yield {'type': 'done'}
+
+    async def generate_analysis_stream(self):
+        """流式生成AI分析报告"""
+        shipments, _ = self.shipment_dao.get_all_shipments(limit=10000)
+
+        if not shipments:
+            yield {'type': 'error', 'content': '没有可分析的数据，请先上传CSV文件'}
+            return
+
+        analysis_prompt = f"""
+你是转运中心现场的班次值班经理。基于以下全量数据输出面向执行的班次简报：
+
+数据概览：
+- 总记录数: {len(shipments)}
+- 状态分布: {self.model_handler._get_status_distribution(shipments)}
+- 平均重量: {self.model_handler._calculate_average_weight(shipments):.2f} kg
+
+请严格按以下结构输出（短句要点式）：
+A. 今日运行态势（拥堵/异常波次/高峰时段）
+B. 风险清单（TOP3：场地、车辆、干线/支线）
+C. 产能与人力（分拣线利用率、缺口岗位与时段）
+D. 关键KPI（SLA命中率、滞留件、问题件、装车准点）
+E. 行动清单（≤5条，明确"责任岗位+完成时限"）
+"""
+
+        async for chunk in self.model_handler.generate_response_stream(analysis_prompt, ""):
+            if chunk['type'] in ('thinking', 'text', 'error'):
+                yield chunk
+
+        yield {'type': 'done'}
