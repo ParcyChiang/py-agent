@@ -72,13 +72,21 @@ class CodeGeneratorHttp:
                         elif chunk['type'] == 'text':
                             full_code += chunk['content']
                         elif chunk['type'] == 'done':
-                            yield f"data: {json.dumps({'type': 'done', 'code': chunk['code']})}\n\n"
+                            # 处理 code 格式
+                            code = full_code
+                            if code.startswith('```python'):
+                                code = code[9:]
+                            if code.startswith('```'):
+                                code = code[3:]
+                            if code.endswith('```'):
+                                code = code[:-3]
+                            code = code.strip()
+
+                            yield f"data: {json.dumps({'type': 'done', 'code': code})}\n\n"
+                            yield f"data: {json.dumps({'type': 'end'})}\n\n"
+                            return
                         elif chunk['type'] == 'error':
                             yield f"data: {json.dumps({'type': 'error', 'content': chunk['content']})}\n\n"
-
-                    # 流结束后，发送累积的完整 code
-                    yield f"data: {json.dumps({'type': 'done', 'code': full_code})}\n\n"
-                    yield f"data: {json.dumps({'type': 'end'})}\n\n"
 
                 # 运行异步生成器
                 gen = stream_result()

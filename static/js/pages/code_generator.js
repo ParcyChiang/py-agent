@@ -34,19 +34,17 @@ async function generateCode() {
 
     const loading = document.getElementById('loading');
     const codeContainer = document.getElementById('codeContainer');
-    const thinkingContainer = document.getElementById('thinkingContainer');
-    const thinkingContent = document.getElementById('thinkingContent');
     const executeBtn = document.getElementById('executeBtn');
+    const generatedCode = document.getElementById('generatedCode');
 
     loading.style.display = 'block';
-    codeContainer.style.display = 'none';
-    thinkingContainer.style.display = 'block';
-    thinkingContent.textContent = '正在思考...\n';
+    codeContainer.style.display = 'block';
+    generatedCode.textContent = '';
     executeBtn.disabled = true;
 
-    // 使用 fetch + 非流式接口
+    // 使用流式接口
     try {
-        const response = await fetch('/generate_code', {
+        const response = await fetch('/generate_code_stream', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -54,22 +52,55 @@ async function generateCode() {
             body: JSON.stringify({ question: question })
         });
 
-        const result = await response.json();
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let fullCode = '';
+        let isThinking = true;  // 标记当前是否在thinking阶段
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n');
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    try {
+                        const data = JSON.parse(line.slice(6));
+                        if (data.type === 'thinking') {
+                            // thinking阶段：显示在代码框内
+                            generatedCode.textContent += data.content;
+                            generatedCode.scrollTop = generatedCode.scrollHeight;
+                        } else if (data.type === 'text') {
+                            // text阶段：thinking结束
+                            if (isThinking) {
+                                isThinking = false;
+                                generatedCode.textContent = fullCode + '\n\n// 思考完成，正在生成代码...\n\n';
+                            }
+                            fullCode += data.content;
+                            generatedCode.textContent = fullCode;
+                            generatedCode.scrollTop = generatedCode.scrollHeight;
+                        } else if (data.type === 'done') {
+                            generatedCode.textContent = data.code;
+                            loading.style.display = 'none';
+                            executeBtn.disabled = false;
+                            cacheSet('generated_code', { question: question, code: data.code });
+                        } else if (data.type === 'error') {
+                            loading.style.display = 'none';
+                            generatedCode.textContent = '生成失败：' + data.content;
+                        }
+                    } catch (e) {
+                        // 忽略解析错误
+                    }
+                }
+            }
+        }
 
         loading.style.display = 'none';
-
-        if (result.success) {
-            thinkingContent.textContent = result.thinking || '（无思考过程）';
-            document.getElementById('generatedCode').textContent = result.code;
-            codeContainer.style.display = 'block';
-            executeBtn.disabled = false;
-            cacheSet('generated_code', { question: question, code: result.code });
-        } else {
-            thinkingContent.textContent = '生成失败：' + (result.message || '未知错误');
-        }
     } catch (error) {
         loading.style.display = 'none';
-        thinkingContent.textContent = '请求失败：' + error.message;
+        generatedCode.textContent = '请求失败：' + error.message;
     }
 }
 
@@ -143,11 +174,9 @@ function clearAll() {
     document.getElementById('questionInput').value = '';
     document.getElementById('generatedCode').textContent = '';
     document.getElementById('executionOutput').textContent = '';
-    document.getElementById('thinkingContent').textContent = '';
     const imageContainer = document.getElementById('imageContainer');
     if (imageContainer) imageContainer.remove();
     document.getElementById('codeContainer').style.display = 'none';
-    document.getElementById('thinkingContainer').style.display = 'none';
     document.getElementById('outputContainer').style.display = 'none';
     document.getElementById('executeBtn').disabled = true;
     cacheRemove('generated_code');

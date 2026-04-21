@@ -93,7 +93,7 @@ class AIModelHandler:
             return AIResponse(f"抱歉，处理您的请求时出现错误: {str(e)}", "")
 
     async def generate_response_stream(self, prompt: str, context: str = ""):
-        """使用API生成响应，流式返回thinking和text"""
+        """使用API生成响应，真正的流式返回thinking和text"""
         try:
             full_prompt = f"{context}\n\n{prompt}" if context else prompt
 
@@ -109,48 +109,74 @@ class AIModelHandler:
                 "messages": [
                     {"role": "user", "content": full_prompt}
                 ],
-                "max_tokens": 4096
+                "max_tokens": 4096,
+                "stream": True  # 启用流式响应
             }
 
-            response = requests.post(self.api_url, headers=headers, json=payload, timeout=120)
+            # 使用 stream=True 进行真正的流式请求
+            response = requests.post(self.api_url, headers=headers, json=payload, timeout=120, stream=True)
             response.raise_for_status()
 
-            result = response.json()
-            logger.info(f"API响应: {result}")
+            logger.info("开始流式接收响应...")
 
-            thinking_parts = []
-            text_parts = []
+            # 逐行读取 SSE 响应
+            for line in response.iter_lines():
+                if not line:
+                    continue
 
-            if "content" in result:
-                content = result["content"]
-                if isinstance(content, list):
-                    for item in content:
-                        item_type = item.get("type", "")
-                        if item_type == "thinking":
-                            tc = item.get("thinking", "")
-                            if tc:
-                                thinking_parts.append(tc)
-                        elif item_type == "text":
-                            tc = item.get("text", "")
-                            if tc:
-                                text_parts.append(tc)
-                elif isinstance(content, str):
-                    text_parts.append(content)
+                line_text = line.decode('utf-8')
 
-            # 合并所有 thinking 并逐段 yield（每段50字符模拟打字效果）
-            full_thinking = "".join(thinking_parts)
-            full_text = "".join(text_parts)
+                # SSE 格式: data: {...}
+                if line_text.startswith('data: '):
+                    data_str = line_text[6:].strip()
 
-            logger.info(f"提取完成，thinking长度: {len(full_thinking)}, text长度: {len(full_text)}")
+                    # 跳过 [DONE] 标记
+                    if data_str == '[DONE]':
+                        break
 
-            for i in range(0, len(full_thinking), 50):
-                chunk = full_thinking[i:i+50]
-                yield {"type": "thinking", "content": chunk}
-                await asyncio.sleep(0.01)
+                    try:
+                        import json as json_module
+                        data = json_module.loads(data_str)
 
-            # 最后 yield text
-            if full_text:
-                yield {"type": "text", "content": full_text}
+                        # 处理不同类型的事件
+                        event_type = data.get("type", "")
+
+                        if event_type == "content_block_start":
+                            # 内容块开始，可能是 thinking 或 text
+                            content_block = data.get("content_block", {})
+                            block_type = content_block.get("type", "")
+                            if block_type == "thinking":
+                                yield {"type": "thinking", "content": ""}
+                            elif block_type == "text":
+                                yield {"type": "text", "content": ""}
+
+                        elif event_type == "content_block_delta":
+                            # 内容块增量更新
+                            delta = data.get("delta", {})
+                            delta_type = delta.get("type", "")
+
+                            if delta_type == "thinking_delta":
+                                content = delta.get("thinking", "")
+                                if content:
+                                    yield {"type": "thinking", "content": content}
+                            elif delta_type == "text_delta":
+                                content = delta.get("text", "")
+                                if content:
+                                    yield {"type": "text", "content": content}
+                            elif delta_type == "signature_delta":
+                                # 签名块，忽略
+                                pass
+
+                        elif event_type == "message_delta":
+                            # 消息完成
+                            delta = data.get("delta", {})
+                            if delta.get("stop_reason") == "end_turn":
+                                logger.info("流式响应完成")
+                                break
+
+                    except json_module.JSONDecodeError:
+                        # 忽略无法解析的行
+                        pass
 
         except requests.exceptions.Timeout:
             logger.error("API请求超时")

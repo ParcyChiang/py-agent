@@ -48,7 +48,7 @@ class CodeGenService:
         return {'success': True, 'code': code, 'thinking': thinking}
 
     async def generate_code_stream(self, question: str):
-        """流式生成 Python 代码，实时输出 thinking"""
+        """流式生成 Python 代码，实时输出 thinking 和 code"""
         if not question:
             yield {'type': 'error', 'content': '请输入问题'}
             return
@@ -60,30 +60,13 @@ class CodeGenService:
 
 请根据上述信息生成Python代码。只返回可运行的Python代码，不要包含任何说明文字、注释或markdown标记。代码应该能够直接在提供的沙箱环境中执行。"""
 
-        # 流式获取 thinking 和 code
-        code_buffer = []
-        full_code = ""
-
+        # 流式获取 thinking 和 code，直接透传不处理
         async for chunk in self.model_handler.generate_response_stream(prompt, context):
-            if chunk['type'] == 'thinking':
+            if chunk['type'] in ('thinking', 'text', 'error'):
                 yield chunk
-            elif chunk['type'] == 'text':
-                full_code += chunk['content']
-            elif chunk['type'] == 'error':
-                yield chunk
-                return
 
-        # 处理 code 格式
-        code = full_code
-        if code.startswith('```python'):
-            code = code[9:]
-        if code.startswith('```'):
-            code = code[3:]
-        if code.endswith('```'):
-            code = code[:-3]
-
-        code = code.strip()
-        yield {'type': 'done', 'code': code}
+        # 流结束后发送 done 信号
+        yield {'type': 'done'}
 
     def execute_code(self, code: str) -> Dict[str, Any]:
         """执行 Python 代码"""
