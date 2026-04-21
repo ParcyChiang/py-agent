@@ -207,35 +207,6 @@ class AIModelHandler:
             "timestamp": __import__('datetime').datetime.now().isoformat()
         }
 
-    async def analyze_bulk_data(self, shipments_data):
-        """批量分析物流数据"""
-        prompt = f"""
-        你是转运中心现场的班次值班经理。基于以下全量数据输出面向执行的班次简报：
-
-        数据概览：
-        - 总记录数: {len(shipments_data)}
-        - 状态分布: {self._get_status_distribution(shipments_data)}
-        - 平均重量: {self._calculate_average_weight(shipments_data):.2f} kg
-
-        请严格按以下结构输出（短句要点式）：
-        A. 今日运行态势（拥堵/异常波次/高峰时段）
-        B. 风险清单（TOP3：场地、车辆、干线/支线）
-        C. 产能与人力（分拣线利用率、缺口岗位与时段）
-        D. 关键KPI（SLA命中率、滞留件、问题件、装车准点）
-        E. 行动清单（≤5条，明确"责任岗位+完成时限"）
-        """
-
-        analysis = await self.generate_response(prompt)
-        return {
-            "analysis": analysis,
-            "timestamp": __import__('datetime').datetime.now().isoformat(),
-            "summary": {
-                "total_records": len(shipments_data),
-                "status_distribution": self._get_status_distribution(shipments_data),
-                "average_weight": self._calculate_average_weight(shipments_data)
-            }
-        }
-
     async def predict_delivery_time(self, shipment_data, historical_data=None):
         """预测交付时间"""
         context = "历史数据预测" if historical_data else "当前数据预测"
@@ -253,28 +224,6 @@ class AIModelHandler:
         return {
             "prediction": prediction,
             "timestamp": __import__('datetime').datetime.now().isoformat()
-        }
-
-    async def generate_daily_report(self, daily_stats, shipments_data):
-        """生成每日报告"""
-        prompt = f"""
-        生成每日日报（面向管理层的一页纸）：
-
-        核心统计：发货{daily_stats.get('total_shipments', 0)}，交付{daily_stats.get('delivered', 0)}，
-                 延迟{daily_stats.get('delayed', 0)}，准时率{daily_stats.get('on_time_rate', 0):.1f}%
-
-        输出模块：
-        1) 经营看板：SLA、吞吐、滞留走势（一句话趋势）
-        2) 异常焦点：TOP2异常及影响（金额/客户/区域）
-        3) 纠偏措施：已执行与待执行（负责人+截止时间）
-        4) 明日安排：人车资源与产能计划（风险点）
-        """
-
-        report = await self.generate_response(prompt)
-        return {
-            "date": daily_stats.get('date'),
-            "report": report,
-            "statistics": daily_stats
         }
 
     def _get_status_distribution(self, shipments_data):

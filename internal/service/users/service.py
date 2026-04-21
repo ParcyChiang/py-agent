@@ -2,7 +2,7 @@
 """用户管理页面服务层"""
 from typing import List, Tuple, Dict
 
-from internal.service.users.dao import UserDAO, LogDAO
+from internal.service.login.dao import UserDAO, LogDAO
 
 
 class AuthService:

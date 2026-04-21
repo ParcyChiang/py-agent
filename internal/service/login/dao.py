@@ -1,5 +1,5 @@
-# pages/login/dao.py
-"""登录页面 DAO 层"""
+# internal/service/login/dao.py
+"""用户和日志 DAO 层"""
 import hashlib
 import contextlib
 from typing import Dict, List, Optional, Tuple
@@ -81,6 +81,25 @@ class UserDAO:
                     (user_id,)
                 )
                 return cursor.fetchone()
+
+    def get_all_users(self) -> List[Dict]:
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT id, username, role, created_at FROM users ORDER BY created_at DESC")
+                return cursor.fetchall()
+
+    def delete_user(self, user_id: int) -> Tuple[bool, str]:
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                try:
+                    cursor.execute("DELETE FROM users WHERE id = %s AND role != 'admin'", (user_id,))
+                    if cursor.rowcount == 0:
+                        return False, "无法删除管理员账号"
+                    conn.commit()
+                    return True, "用户已删除"
+                except Exception as e:
+                    conn.rollback()
+                    return False, f"删除失败: {str(e)}"
 
 
 class LogDAO:

@@ -2,7 +2,7 @@
 """管理员日志页面服务层"""
 from typing import List, Dict
 
-from internal.service.admin_log.dao import LogDAO
+from internal.service.login.dao import LogDAO
 
 
 class LogService:

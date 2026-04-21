@@ -1,12 +1,9 @@
 # pages/upload/service.py
 """上传页面服务层"""
-import asyncio
 from typing import Dict, List, Any, Tuple
 
 from internal.service.upload.dao import ShipmentDAO
 from internal.service.login.dao import LogDAO
-from internal.pkg.models.model_handler import AIModelHandler
-from internal.pkg.utils import format_ai_response
 
 
 class ShipmentService:
@@ -62,84 +59,3 @@ class ShipmentService:
 
         events = self.shipment_dao.get_shipment_events(shipment_id)
         return shipment, events
-
-    def get_chart_data(self) -> Dict[str, Any]:
-        """获取图表数据"""
-        shipments, _ = self.shipment_dao.get_all_shipments(limit=10000)
-
-        if not shipments:
-            return {
-                'success': False,
-                'message': '没有可分析的数据，请先上传CSV文件'
-            }
-
-        daily_stats = self.shipment_dao.get_daily_stats()
-        daily_trend = self.shipment_dao.get_daily_trend()
-        status_distribution = self.get_status_distribution()
-
-        from internal.pkg.charts import generate_chart_data
-        chart_data = generate_chart_data(shipments, daily_stats)
-
-        return {
-            'success': True,
-            'summary': {
-                'status_distribution': status_distribution
-            },
-            'statistics': {
-                'total_shipments': daily_stats.get('total_shipments', len(shipments)),
-                'surface_3d': chart_data['surface_3d'],
-                'scatter_3d': chart_data['scatter_3d'],
-                'wireframe_3d': chart_data['wireframe_3d'],
-                'data_info': chart_data['data_info'],
-                'daily_trend': daily_trend
-            }
-        }
-
-    def get_status_distribution(self) -> Dict[str, int]:
-        """获取状态分布"""
-        from internal.pkg.constants import STATUS_CN_MAP
-
-        shipments, _ = self.shipment_dao.get_all_shipments(limit=10000)
-        distribution = {}
-
-        for shipment in shipments:
-            status = shipment.get('status', 'unknown')
-            cn_status = STATUS_CN_MAP.get(status, status)
-            distribution[cn_status] = distribution.get(cn_status, 0) + 1
-
-        return distribution
-
-    def analyze_shipment(self, shipment_id: str) -> Dict[str, Any]:
-        """分析单个物流"""
-        shipment = self.shipment_dao.get_shipment_by_id(shipment_id)
-        if not shipment:
-            return {
-                'success': False,
-                'message': '未找到指定的物流信息'
-            }
-
-        events = self.shipment_dao.get_shipment_events(shipment_id)
-        model_handler = AIModelHandler()
-
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            analysis = loop.run_until_complete(
-                model_handler.analyze_shipment_data(shipment)
-            )
-            prediction = loop.run_until_complete(
-                model_handler.predict_delivery_time(shipment, events)
-            )
-        finally:
-            loop.close()
-
-        analysis_html = format_ai_response(analysis['analysis'])
-        prediction_html = format_ai_response(prediction['prediction'])
-
-        return {
-            'success': True,
-            'shipment': shipment,
-            'events': events,
-            'analysis': analysis_html,
-            'prediction': prediction_html
-        }

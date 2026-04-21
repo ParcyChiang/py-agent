@@ -2,7 +2,7 @@
 """注册页面服务层"""
 from typing import Tuple
 
-from internal.service.register.dao import UserDAO, LogDAO
+from internal.service.login.dao import UserDAO, LogDAO
 
 
 class AuthService:

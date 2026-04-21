@@ -44,8 +44,10 @@ class UploadHttp:
 
     def get_shipment(self, shipment_id):
         """获取单个物流详情"""
-        analysis_result = self.service.analyze_shipment(shipment_id)
-        return success(data=analysis_result)
+        shipment, events = self.service.get_shipment_by_id(shipment_id)
+        if not shipment:
+            return error('未找到指定的物流信息')
+        return success(data={'shipment': shipment, 'events': events})
 
     def upload(self):
         """上传 CSV 文件"""

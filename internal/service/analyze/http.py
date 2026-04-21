@@ -25,10 +25,8 @@ class AnalyzeHttp:
         return render_template('analyze.html')
 
     def get_chart_data(self):
-        """获取图表数据（不调用AI）"""
-        from internal.service.upload.service import ShipmentService
-        shipment_service = ShipmentService()
-        result = shipment_service.get_chart_data()
+        """获取图表数据"""
+        result = self.service.get_chart_data()
 
         if result.get('success'):
             return success(data=result)
