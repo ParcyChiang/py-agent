@@ -7,17 +7,54 @@ $(function(){
         $('#dailyReportContent').html(savedReport);
     }
 
-    $('#genReportBtn').on('click', function() {
-        $('#dailyReportContent').html('生成中...');
-        $.getJSON('/report', function(response) {
-            if (response.success) {
-                $('#dailyReportContent').html(response.daily_report);
-                cacheSet('daily_report', response.daily_report);
-            } else {
-                $('#dailyReportContent').html('<div class="error">'+response.message+'</div>');
+    $('#genReportBtn').on('click', async function() {
+        const $content = $('#dailyReportContent');
+        const $btn = $(this);
+        $btn.prop('disabled', true);
+        $content.html('正在生成日报...');
+
+        try {
+            const response = await fetch('/report_stream');
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let fullContent = '';
+            let isThinking = true;
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value);
+                const lines = chunk.split('\n');
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            const data = JSON.parse(line.slice(6));
+                            if (data.type === 'thinking') {
+                                if (isThinking) {
+                                    $content.html('<em style="color:#666;">思考中：' + data.content + '</em>');
+                                } else {
+                                    $content.html(fullContent + '\n\n<em style="color:#666;">继续生成...</em>');
+                                }
+                            } else if (data.type === 'text') {
+                                isThinking = false;
+                                fullContent += data.content;
+                                $content.html(fullContent);
+                            } else if (data.type === 'done') {
+                                $content.html(data.content);
+                                cacheSet('daily_report', data.content);
+                            } else if (data.type === 'error') {
+                                $content.html('<div class="error">生成失败：' + data.content + '</div>');
+                            }
+                        } catch (e) {}
+                    }
+                }
             }
-        }).fail(function(){
-            $('#dailyReportContent').html('<div class="error">生成失败，请重试</div>');
-        });
+        } catch (error) {
+            $content.html('<div class="error">请求失败：' + error.message + '</div>');
+        } finally {
+            $btn.prop('disabled', false);
+        }
     });
 });
