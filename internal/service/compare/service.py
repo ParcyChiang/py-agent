@@ -117,10 +117,11 @@ class CompareService:
 
         return {'success': True, 'origins': origins, 'destinations': destinations, 'couriers': couriers}
 
-    async def analyze_comparison(self, comparison_data: list) -> Dict[str, Any]:
-        """使用LLM分析物流对比数据"""
+    async def analyze_comparison_stream(self, comparison_data: list):
+        """使用LLM流式分析物流对比数据"""
         if not comparison_data:
-            return {'success': False, 'message': '没有提供对比数据'}
+            yield {'type': 'error', 'content': '没有提供对比数据'}
+            return
 
         prompt = f"""
         你是一个物流运营专家，需要对以下物流对比数据进行分析并给出优化方案：
@@ -136,8 +137,8 @@ class CompareService:
         分析要具体、可操作，基于实际物流运营场景。
         """
 
-        response = await self.model_handler.generate_response(prompt)
-        analysis = str(response)
-        thinking = response.thinking
+        async for chunk in self.model_handler.generate_response_stream(prompt, ""):
+            if chunk['type'] in ('thinking', 'text', 'error'):
+                yield chunk
 
-        return {'success': True, 'analysis': analysis, 'thinking': thinking}
+        yield {'type': 'done'}

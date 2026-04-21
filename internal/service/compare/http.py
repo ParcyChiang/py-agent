@@ -1,10 +1,15 @@
 # pages/compare/http.py
 """物流对比页面 HTTP 处理器"""
-from flask import request, render_template
+import asyncio
+import json
+import logging
+from flask import request, render_template, Response
 
 from internal.service.compare.service import CompareService
 from internal.pkg.response import success, error
 from internal.middleware import login_required
+
+logger = logging.getLogger("LogisticsAgent")
 
 
 class CompareHttp:
@@ -20,7 +25,7 @@ class CompareHttp:
         # API路由
         app.add_url_rule('/api/shipments/compare', endpoint='compare_data', view_func=login_required(self.get_compare_data), methods=['GET'])
         app.add_url_rule('/api/shipments/filters', endpoint='shipment_filters', view_func=login_required(self.get_filters), methods=['GET'])
-        app.add_url_rule('/api/shipments/analyze-comparison', endpoint='analyze_comparison', view_func=login_required(self.analyze_comparison), methods=['POST'])
+        app.add_url_rule('/api/shipments/analyze_comparison_stream', endpoint='analyze_comparison_stream', view_func=login_required(self.analyze_comparison_stream), methods=['POST'])
 
     def page_compare(self):
         """物流对比页面"""
@@ -46,8 +51,51 @@ class CompareHttp:
         """获取物流筛选过滤选项"""
         return self.service.get_filters()
 
-    async def analyze_comparison(self):
-        """使用LLM分析物流对比数据"""
+    def analyze_comparison_stream(self):
+        """SSE流式分析物流对比数据"""
+        # 在请求上下文内获取数据
         data = request.get_json()
-        comparison_data = data.get('comparison_data', [])
-        return await self.service.analyze_comparison(comparison_data)
+        comparison_data = data.get('comparison_data', []) if data else []
+
+        def generate():
+            yield f"data: {json.dumps({'type': 'start'})}\n\n"
+
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+            try:
+                async def stream_result():
+                    async for item in self.service.analyze_comparison_stream(comparison_data):
+                        if item['type'] == 'thinking':
+                            yield f"data: {json.dumps({'type': 'thinking', 'content': item['content']})}\n\n"
+                        elif item['type'] == 'text':
+                            yield f"data: {json.dumps({'type': 'text', 'content': item['content']})}\n\n"
+                        elif item['type'] == 'done':
+                            yield f"data: {json.dumps({'type': 'end'})}\n\n"
+                            return
+                        elif item['type'] == 'error':
+                            yield f"data: {json.dumps({'type': 'error', 'content': item['content']})}\n\n"
+
+                gen = stream_result()
+                try:
+                    while True:
+                        try:
+                            chunk = loop.run_until_complete(gen.__anext__())
+                            yield chunk
+                        except StopAsyncIteration:
+                            break
+                except Exception as e:
+                    logger.error(f"流式分析异常: {e}")
+                    yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
+            finally:
+                loop.close()
+
+        return Response(
+            generate(),
+            mimetype='text/event-stream',
+            headers={
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
+                'X-Accel-Buffering': 'no'
+            }
+        )

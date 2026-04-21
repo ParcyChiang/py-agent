@@ -24,28 +24,12 @@ class CodeGeneratorHttp:
         # 页面路由
         app.add_url_rule('/page/code_generator', endpoint='page_code_generator', view_func=login_required(self.page_code_generator))
         # API路由
-        app.add_url_rule('/generate_code', endpoint='generate_code', view_func=login_required(self.generate_code), methods=['POST'])
         app.add_url_rule('/generate_code_stream', endpoint='generate_code_stream', view_func=login_required(self.generate_code_stream), methods=['POST'])
         app.add_url_rule('/execute_code', endpoint='execute_code', view_func=login_required(self.execute_code), methods=['POST'])
 
     def page_code_generator(self):
         """代码生成页面"""
         return render_template('code_generator.html')
-
-    async def generate_code(self):
-        """生成代码"""
-        data = request.get_json()
-        question = data.get('question', '').strip()
-
-        if not question:
-            return error('请输入问题')
-
-        result = await self.service.generate_code(question)
-
-        if result.get('success'):
-            return success(data={'code': result.get('code'), 'thinking': result.get('thinking', '')})
-        else:
-            return error(result.get('message'))
 
     def generate_code_stream(self):
         """SSE流式生成代码，实时发送thinking让前端显示"""

@@ -286,7 +286,7 @@ $(function(){
     });
 
     // 分析按钮点击事件
-    $(document).on('click', '.analyze-btn', function() {
+    $(document).on('click', '.analyze-btn', async function() {
         var index = $(this).data('index');
         var page = $(this).data('page');
         var analysisDiv = $('#analysis-' + index);
@@ -298,37 +298,61 @@ $(function(){
         var destinationFilter = $('#destinationFilter').val();
         var courierFilter = $('#courierFilter').val();
 
-        $.getJSON('/api/shipments/compare', {
-            origin: originFilter,
-            destination: destinationFilter,
-            courier: courierFilter,
-            page: page,
-            pageSize: pageSize
-        }, function(response) {
-            if (response.success && response.data.length > index) {
-                groupData.push(response.data[index]);
+        try {
+            var compareResponse = await $.getJSON('/api/shipments/compare', {
+                origin: originFilter,
+                destination: destinationFilter,
+                courier: courierFilter,
+                page: page,
+                pageSize: pageSize
+            });
 
-                // 调用分析API
-                $.ajax({
-                    url: '/api/shipments/analyze-comparison',
-                    type: 'POST',
-                    contentType: 'application/json',
-                    data: JSON.stringify({ comparison_data: groupData }),
-                    success: function(analysisResponse) {
-                        if (analysisResponse.success) {
-                            var markdownContent = marked.parse(analysisResponse.analysis);
-                            analysisDiv.html('<h4>智能分析结果</h4><div class="markdown-body">' + markdownContent + '</div>');
-                            // 缓存分析结果
-                            cacheSet('comparison_analysis_' + index + '_' + page, analysisResponse.analysis);
-                        } else {
-                            analysisDiv.html('<h4>分析失败</h4><p>' + analysisResponse.message + '</p>');
-                        }
-                    },
-                    error: function() {
-                        analysisDiv.html('<h4>分析失败</h4><p>请稍后重试</p>');
-                    }
+            if (compareResponse.success && compareResponse.data.length > index) {
+                groupData.push(compareResponse.data[index]);
+
+                // 调用流式分析API
+                var response = await fetch('/api/shipments/analyze_comparison_stream', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ comparison_data: groupData })
                 });
+
+                var reader = response.body.getReader();
+                var decoder = new TextDecoder();
+                var fullContent = '';
+                var isThinking = true;
+
+                while (true) {
+                    var { done, value } = await reader.read();
+                    if (done) break;
+
+                    var chunk = decoder.decode(value);
+                    var lines = chunk.split('\n');
+
+                    for (var line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                var data = JSON.parse(line.slice(6));
+                                if (data.type === 'thinking') {
+                                    isThinking = true;
+                                    analysisDiv.html('<em style="color:#666;">分析中：' + data.content + '</em>');
+                                } else if (data.type === 'text') {
+                                    isThinking = false;
+                                    fullContent += data.content;
+                                    var markdownContent = marked.parse(fullContent);
+                                    analysisDiv.html('<h4>智能分析结果</h4><div class="markdown-body">' + markdownContent + '</div>');
+                                } else if (data.type === 'end') {
+                                    cacheSet('comparison_analysis_' + index + '_' + page, fullContent);
+                                } else if (data.type === 'error') {
+                                    analysisDiv.html('<h4>分析失败</h4><p>' + data.content + '</p>');
+                                }
+                            } catch (e) {}
+                        }
+                    }
+                }
             }
-        });
+        } catch (error) {
+            analysisDiv.html('<h4>分析失败</h4><p>' + error.message + '</p>');
+        }
     });
 });

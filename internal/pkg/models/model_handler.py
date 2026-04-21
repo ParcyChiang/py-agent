@@ -38,60 +38,6 @@ class AIModelHandler:
         self.api_key = api_key or os.getenv("MINIMAX_API_KEY")
         self.api_url = os.getenv("MINIMAX_API_URL", "https://api.minimaxi.com/anthropic/v1/messages")
 
-    async def generate_response(self, prompt: str, context: str = "") -> AIResponse:
-        """使用API生成响应"""
-        try:
-            full_prompt = f"{context}\n\n{prompt}" if context else prompt
-
-            headers = {
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
-                "x-api-key": self.api_key,
-                "anthropic-version": "2023-06-01"
-            }
-
-            payload = {
-                "model": self.model_name,
-                "messages": [
-                    {"role": "user", "content": full_prompt}
-                ],
-                "max_tokens": 4096
-            }
-
-            response = requests.post(self.api_url, headers=headers, json=payload, timeout=120)
-            response.raise_for_status()
-
-            result = response.json()
-            logger.info(f"API响应: {result}")
-            if "content" in result:
-                content = result["content"]
-                if isinstance(content, list):
-                    text_parts = []
-                    thinking_parts = []
-                    for item in content:
-                        item_type = item.get("type", "")
-                        if item_type == "text":
-                            text_parts.append(item.get("text", ""))
-                        elif item_type == "thinking":
-                            thinking_parts.append(item.get("thinking", ""))
-                    text = "\n".join(text_parts) if text_parts else str(content)
-                    thinking = "\n".join(thinking_parts)
-                    return AIResponse(text, thinking)
-                elif isinstance(content, str):
-                    return AIResponse(content, "")
-            logger.error(f"API响应格式异常: {result}")
-            return AIResponse("抱歉，模型返回格式异常", "")
-
-        except requests.exceptions.Timeout:
-            logger.error("API请求超时")
-            return AIResponse("抱歉，模型请求超时，请稍后重试", "")
-        except requests.exceptions.RequestException as e:
-            logger.error(f"API请求失败: {e}")
-            return AIResponse(f"抱歉，模型调用失败: {str(e)}", "")
-        except Exception as e:
-            logger.error(f"模型调用失败: {e}")
-            return AIResponse(f"抱歉，处理您的请求时出现错误: {str(e)}", "")
-
     async def generate_response_stream(self, prompt: str, context: str = ""):
         """使用API生成响应，真正的流式返回thinking和text"""
         try:
