@@ -1,4 +1,10 @@
 ## py-agent搭建Log
+### v1.17
+1. feat: AI生成内容后端自动入库，移除前端 saveChat 调用
+2. feat: 日报、分析报告、代码生成、物流对比生成完成后在后端直接保存到 chat_history
+3. fix: 移除 chat_history/create 接口的登录校验，解决前端跨页面请求 cookie 未带上导致入库失败的问题
+4. fix: 修复 session 在 SSE 流结束后无法访问的问题，提前获取 session 值
+
 ### v1.16
 1. fix: 修复默认请求历史时候调用当前页面;移除调试日志
 
