@@ -295,6 +295,69 @@ class ShipmentDAO:
                     "in_transit": daily_in_transit
                 }
 
+    def batch_update_status(self, shipment_ids: List[str], new_status: str) -> Tuple[int, List[Dict], List[Dict]]:
+        """批量更新状态，返回 (成功数, 变更前, 变更后)"""
+        before_states = []
+        after_states = []
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                try:
+                    # 获取变更前的状态
+                    placeholders = ','.join(['%s'] * len(shipment_ids))
+                    cursor.execute(f"SELECT id, status FROM shipments WHERE id IN ({placeholders})", shipment_ids)
+                    for row in cursor.fetchall():
+                        before_states.append({'id': row['id'], 'status': row['status']})
+
+                    # 执行更新
+                    cursor.execute(
+                        f"UPDATE shipments SET status = %s WHERE id IN ({placeholders})",
+                        [new_status] + shipment_ids
+                    )
+                    conn.commit()
+
+                    # 获取变更后的状态
+                    cursor.execute(f"SELECT id, status FROM shipments WHERE id IN ({placeholders})", shipment_ids)
+                    for row in cursor.fetchall():
+                        after_states.append({'id': row['id'], 'status': row['status']})
+
+                    return cursor.rowcount, before_states, after_states
+                except Exception as e:
+                    conn.rollback()
+                    raise
+
+    def get_shipments_by_criteria(self, status: str = None, days: int = None,
+                                   origin: str = None, destination: str = None,
+                                   limit: int = 1000) -> List[Dict]:
+        """按条件查询物流记录"""
+        conditions = []
+        params = []
+        if status:
+            conditions.append("status = %s")
+            params.append(status)
+        if days:
+            conditions.append(f"created_at >= DATE_SUB(NOW(), INTERVAL %s DAY)")
+            params.append(days)
+        if origin:
+            conditions.append("origin LIKE %s")
+            params.append(f"%{origin}%")
+        if destination:
+            conditions.append("destination LIKE %s")
+            params.append(f"%{destination}%")
+
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    f"SELECT * FROM shipments WHERE {where_clause} ORDER BY created_at DESC LIMIT %s",
+                    params + [limit]
+                )
+                rows = cursor.fetchall()
+                result = []
+                for row in rows:
+                    row['dimensions'] = json.loads(row.get('dimensions') or '{}')
+                    result.append(row)
+                return result
+
 
 class UserDAO:
     """用户数据访问对象"""
@@ -547,3 +610,93 @@ class ChatHistoryDAO:
                     (user_id, f"%{keyword}%", f"%{keyword}%", limit)
                 )
                 return cursor.fetchall()
+
+    def create_session(self, user_id: int, username: str, title: str = "") -> str:
+        """创建新会话，返回 session_id"""
+        import uuid
+        session_id = f"sess_{uuid.uuid4().hex[:12]}"
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """INSERT INTO chat_history
+                       (user_id, username, page, title, user_input, ai_response, session_id, message_order)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+                    (user_id, username, 'chat_agent', title, '__SESSION_START__', '', session_id, 0)
+                )
+                conn.commit()
+                return session_id
+
+    def add_message(self, user_id: int, username: str, session_id: str,
+                    message_order: int, role: str, content: str,
+                    action_type: str = None, action_result: str = None,
+                    diff_content: str = None) -> None:
+        """添加消息"""
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """INSERT INTO chat_history
+                       (user_id, username, page, title, user_input, ai_response,
+                        session_id, message_order, action_type, action_result, diff_content)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                    (user_id, username, 'chat_agent', '', content if role == 'user' else '',
+                     content if role == 'assistant' else '',
+                     session_id, message_order, action_type, action_result, diff_content)
+                )
+                conn.commit()
+
+    def get_session_messages(self, session_id: str) -> List[Dict]:
+        """获取会话所有消息，按 message_order 排序"""
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """SELECT id, user_input, ai_response, session_id, message_order,
+                              action_type, action_result, diff_content, created_at
+                       FROM chat_history
+                       WHERE session_id = %s AND user_input != '__SESSION_START__'
+                       ORDER BY message_order ASC""",
+                    (session_id,)
+                )
+                rows = cursor.fetchall()
+                result = []
+                for row in rows:
+                    result.append({
+                        'id': row['id'],
+                        'role': 'user' if row['user_input'] else 'assistant',
+                        'content': row['user_input'] or row['ai_response'],
+                        'message_order': row['message_order'],
+                        'action_type': row['action_type'],
+                        'action_result': row['action_result'],
+                        'diff_content': row['diff_content'],
+                        'created_at': row['created_at']
+                    })
+                return result
+
+    def get_user_sessions(self, user_id: int, limit: int = 50) -> List[Dict]:
+        """获取用户会话列表（按 session_id 分组）"""
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """SELECT session_id,
+                              MAX(CASE WHEN user_input != '__SESSION_START__'
+                                  THEN COALESCE(user_input, ai_response) ELSE NULL END) as title,
+                              COUNT(*) as message_count,
+                              MAX(created_at) as last_updated
+                       FROM chat_history
+                       WHERE user_id = %s AND page = 'chat_agent'
+                       GROUP BY session_id
+                       ORDER BY last_updated DESC
+                       LIMIT %s""",
+                    (user_id, limit)
+                )
+                return cursor.fetchall()
+
+    def delete_session(self, session_id: str, user_id: int) -> bool:
+        """删除会话"""
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "DELETE FROM chat_history WHERE session_id = %s AND user_id = %s",
+                    (session_id, user_id)
+                )
+                conn.commit()
+                return cursor.rowcount > 0
