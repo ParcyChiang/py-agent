@@ -150,18 +150,3 @@ class AIModelHandler:
             return 0.0
         total_weight = sum(shipment.get('weight', 0) for shipment in shipments_data)
         return total_weight / len(shipments_data)
-
-    def _format_shipment_data(self, shipment_data):
-        """格式化单个物流数据"""
-        return f"""
-        物流单号: {shipment_data.get('id')}
-        状态: {shipment_data.get('status')}
-        发货地: {shipment_data.get('origin')} ({shipment_data.get('origin_city')})
-        收货地: {shipment_data.get('destination')} ({shipment_data.get('destination_city')})
-        快递公司: {shipment_data.get('courier_company')}
-        重量: {shipment_data.get('weight')} kg
-        运费: {shipment_data.get('shipping_fee')} 元
-        创建时间: {shipment_data.get('created_at')}
-        预计送达: {shipment_data.get('estimated_delivery')}
-        实际送达: {shipment_data.get('actual_delivery')}
-        """
