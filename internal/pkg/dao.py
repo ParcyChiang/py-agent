@@ -447,3 +447,103 @@ class LogDAO:
                     (user_id, limit)
                 )
                 return cursor.fetchall()
+
+
+class ChatHistoryDAO:
+    """对话历史数据访问对象"""
+
+    def __init__(self):
+        self.host = Config.MYSQL_HOST
+        self.port = Config.MYSQL_PORT
+        self.user = Config.MYSQL_USER
+        self.password = Config.MYSQL_PASSWORD
+        self.database = Config.MYSQL_DATABASE
+
+    def _get_connection(self, with_db: bool = True):
+        return pymysql.connect(
+            host=self.host,
+            port=self.port,
+            user=self.user,
+            password=self.password,
+            database=self.database if with_db else None,
+            charset="utf8mb4",
+            cursorclass=DictCursor,
+            autocommit=False,
+        )
+
+    @contextlib.contextmanager
+    def get_connection(self, with_db: bool = True):
+        conn = self._get_connection(with_db)
+        try:
+            yield conn
+        finally:
+            conn.close()
+
+    def create_chat(self, user_id: int, username: str, page: str, title: str, user_input: str, ai_response: str) -> int:
+        """创建新对话，返回对话ID"""
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """INSERT INTO chat_history (user_id, username, page, title, user_input, ai_response, created_at)
+                       VALUES (%s, %s, %s, %s, %s, %s, NOW())""",
+                    (user_id, username, page, title, user_input, ai_response)
+                )
+                conn.commit()
+                return cursor.lastrowid
+
+    def get_user_chats(self, user_id: int, page: str = None, limit: int = 50) -> List[Dict]:
+        """获取用户的对话历史列表"""
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                if page:
+                    cursor.execute(
+                        """SELECT id, page, title, user_input, ai_response, created_at
+                           FROM chat_history
+                           WHERE user_id = %s AND page = %s
+                           ORDER BY created_at DESC LIMIT %s""",
+                        (user_id, page, limit)
+                    )
+                else:
+                    cursor.execute(
+                        """SELECT id, page, title, user_input, ai_response, created_at
+                           FROM chat_history
+                           WHERE user_id = %s
+                           ORDER BY created_at DESC LIMIT %s""",
+                        (user_id, limit)
+                    )
+                return cursor.fetchall()
+
+    def get_chat_by_id(self, chat_id: int) -> Optional[Dict]:
+        """根据ID获取单条对话"""
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """SELECT id, user_id, username, page, title, user_input, ai_response, created_at
+                       FROM chat_history WHERE id = %s""",
+                    (chat_id,)
+                )
+                return cursor.fetchone()
+
+    def delete_chat(self, chat_id: int, user_id: int) -> bool:
+        """删除对话"""
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "DELETE FROM chat_history WHERE id = %s AND user_id = %s",
+                    (chat_id, user_id)
+                )
+                conn.commit()
+                return cursor.rowcount > 0
+
+    def search_chats(self, user_id: int, keyword: str, limit: int = 20) -> List[Dict]:
+        """搜索对话"""
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """SELECT id, page, title, user_input, ai_response, created_at
+                       FROM chat_history
+                       WHERE user_id = %s AND (title LIKE %s OR user_input LIKE %s)
+                       ORDER BY created_at DESC LIMIT %s""",
+                    (user_id, f"%{keyword}%", f"%{keyword}%", limit)
+                )
+                return cursor.fetchall()

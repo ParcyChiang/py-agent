@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>运营分析报告 - 物流智能分析</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chat_history.css') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -52,5 +53,33 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="{{ url_for('static', filename='js/cache.js') }}"></script>
     <script src="{{ url_for('static', filename='js/pages/analysis_report.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chat_history.js') }}"></script>
+    <script>
+    // 页面加载时检查是否有需要恢复的对话
+    $(function() {
+        const chatData = sessionStorage.getItem('chat_to_load');
+        if (chatData) {
+            sessionStorage.removeItem('chat_to_load');
+            try {
+                const chat = JSON.parse(chatData);
+                if (chat.page === 'analysis_report') {
+                    if (chat.title && chat.title.includes('日报')) {
+                        $('#dailyReportContent').html(chat.ai_response || '');
+                    } else {
+                        $('#analysisContent').html(chat.ai_response || '');
+                    }
+                }
+            } catch (e) {
+                console.error('恢复对话数据失败:', e);
+            }
+        }
+    });
+
+    // 初始化对话历史管理器
+    window.chatHistoryManager = new ChatHistoryManager({
+        page: 'analysis_report',
+        onLoadChat: null  // 点击历史记录会跳转到对应页面
+    });
+    </script>
 </body>
 </html>

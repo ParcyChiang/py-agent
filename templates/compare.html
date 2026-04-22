@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>物流对比分析 - 物流智能分析</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chat_history.css') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -80,5 +81,31 @@
     <script src="{{ url_for('static', filename='js/cache.js') }}"></script>
     <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
     <script src="{{ url_for('static', filename='js/pages/compare.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chat_history.js') }}"></script>
+    <script>
+    // 页面加载时检查是否有需要恢复的对话
+    $(function() {
+        const chatData = sessionStorage.getItem('chat_to_load');
+        if (chatData) {
+            sessionStorage.removeItem('chat_to_load');
+            try {
+                const chat = JSON.parse(chatData);
+                if (chat.page === 'compare' && chat.ai_response) {
+                    // 物流对比页面的分析结果恢复
+                    var markdownContent = marked.parse(chat.ai_response);
+                    // 可以根据需要显示到对应位置
+                }
+            } catch (e) {
+                console.error('恢复对话数据失败:', e);
+            }
+        }
+    });
+
+    // 初始化对话历史管理器
+    window.chatHistoryManager = new ChatHistoryManager({
+        page: 'compare',
+        onLoadChat: null  // 点击历史记录会跳转到对应页面
+    });
+    </script>
 </body>
 </html>

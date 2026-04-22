@@ -105,6 +105,21 @@ def init_database():
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             """)
 
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS chat_history (
+                    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    user_id INT NOT NULL,
+                    username VARCHAR(64) NOT NULL,
+                    page VARCHAR(64) NOT NULL COMMENT '页面标识：code_generator/analysis_report/compare等',
+                    title VARCHAR(256) DEFAULT '' COMMENT '对话标题/摘要',
+                    user_input TEXT NOT NULL COMMENT '用户输入',
+                    ai_response TEXT COMMENT 'AI响应内容',
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_user_page (user_id, page),
+                    INDEX idx_user_created (user_id, created_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """)
+
             # 初始化管理员账号
             import hashlib
             cursor.execute("SELECT id FROM users WHERE role = 'admin' LIMIT 1")

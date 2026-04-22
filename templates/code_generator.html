@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Python代码生成器 - 物流分析系统</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chat_history.css') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -93,6 +94,123 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="{{ url_for('static', filename='js/cache.js') }}"></script>
     <script src="{{ url_for('static', filename='js/pages/code_generator.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chat_history.js') }}"></script>
+    <script>
+    // 页面加载时检查是否有需要恢复的对话
+    $(function() {
+        const chatData = sessionStorage.getItem('chat_to_load');
+        if (chatData) {
+            sessionStorage.removeItem('chat_to_load');
+            try {
+                const chat = JSON.parse(chatData);
+                if (chat.page === 'code_generator') {
+                    document.getElementById('questionInput').value = chat.user_input || '';
+                    document.getElementById('generatedCode').textContent = chat.ai_response || '';
+                    document.getElementById('codeContainer').style.display = chat.ai_response ? 'block' : 'none';
+                    document.getElementById('executeBtn').disabled = !chat.ai_response;
+                }
+            } catch (e) {
+                console.error('恢复对话数据失败:', e);
+            }
+        }
+    });
+
+    // 初始化对话历史管理器
+    window.chatHistoryManager = new ChatHistoryManager({
+        page: 'code_generator',
+        onLoadChat: null  // 点击历史记录会跳转到对应页面，不再直接填充
+    });
+
+    // 改造 generateCode 函数以保存对话历史
+    const originalGenerateCode = window.generateCode;
+    window.generateCode = async function() {
+        console.log('[CodeGenerator] generateCode 被调用');
+        const question = document.getElementById('questionInput').value.trim();
+        if (!question) {
+            alert('请输入您的问题！');
+            return;
+        }
+
+        const loading = document.getElementById('loading');
+        const codeContainer = document.getElementById('codeContainer');
+        const executeBtn = document.getElementById('executeBtn');
+        const generatedCode = document.getElementById('generatedCode');
+
+        loading.style.display = 'block';
+        codeContainer.style.display = 'block';
+        generatedCode.textContent = '';
+        executeBtn.disabled = true;
+
+        let fullCode = '';
+        let isThinking = true;
+
+        try {
+            const response = await fetch('/generate_code_stream', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question: question })
+            });
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value);
+                const lines = chunk.split('\n');
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            const data = JSON.parse(line.slice(6));
+                            if (data.type === 'thinking') {
+                                generatedCode.textContent += data.content;
+                                generatedCode.scrollTop = generatedCode.scrollHeight;
+                            } else if (data.type === 'text') {
+                                if (isThinking) {
+                                    isThinking = false;
+                                    generatedCode.textContent = fullCode + '\n\n// 思考完成，正在生成代码...\n\n';
+                                }
+                                fullCode += data.content;
+                                generatedCode.textContent = fullCode;
+                                generatedCode.scrollTop = generatedCode.scrollHeight;
+                            } else if (data.type === 'done') {
+                                generatedCode.textContent = data.code;
+                                loading.style.display = 'none';
+                                executeBtn.disabled = false;
+                                cacheSet('generated_code', { question: question, code: data.code });
+
+                                // 保存到对话历史
+                                console.log('[CodeGenerator] 生成完成，准备保存对话');
+                                if (window.chatHistoryManager) {
+                                    console.log('[CodeGenerator] 调用 saveChat');
+                                    window.chatHistoryManager.saveChat(
+                                        'code_generator',
+                                        question.substring(0, 50) + (question.length > 50 ? '...' : ''),
+                                        question,
+                                        data.code
+                                    );
+                                } else {
+                                    console.log('[CodeGenerator] window.chatHistoryManager 不存在');
+                                }
+                            } else if (data.type === 'error') {
+                                loading.style.display = 'none';
+                                generatedCode.textContent = '生成失败：' + data.content;
+                            }
+                        } catch (e) {}
+                    }
+                }
+            }
+
+            loading.style.display = 'none';
+        } catch (error) {
+            loading.style.display = 'none';
+            generatedCode.textContent = '请求失败：' + error.message;
+        }
+    };
+    </script>
 </body>
 </html>
 
