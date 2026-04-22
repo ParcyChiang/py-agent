@@ -22,12 +22,8 @@ class ChatAgentHttp:
     def routes(self, app):
         """注册 ChatAgent 路由"""
         # 页面路由
-        app.add_url_rule('/page/chat_agent', endpoint='page_chat_agent',
-                         view_func=login_required(self.page_chat_agent))
         app.add_url_rule('/page/chat', endpoint='page_chat',
                          view_func=login_required(self.page_chat))
-        app.add_url_rule('/page/chat/<session_id>', endpoint='page_chat_session',
-                         view_func=login_required(self.page_chat_session))
 
         # API 路由
         app.add_url_rule('/api/chat/sessions', endpoint='chat_sessions_list',
@@ -43,17 +39,9 @@ class ChatAgentHttp:
         app.add_url_rule('/api/chat/confirm', endpoint='chat_confirm',
                          view_func=login_required(self.confirm_action), methods=['POST'])
 
-    def page_chat_agent(self):
+    def page_chat(self):
         """ChatAgent 页面"""
         return render_template('chat.html')
-
-    def page_chat(self):
-        """新建对话页面"""
-        return render_template('chat.html')
-
-    def page_chat_session(self, session_id: str):
-        """会话页面"""
-        return render_template('chat.html', session_id=session_id)
 
     def list_sessions(self):
         """获取会话列表"""
