@@ -560,7 +560,7 @@ class ChatHistoryDAO:
             with conn.cursor() as cursor:
                 if page:
                     cursor.execute(
-                        """SELECT id, page, title, user_input, ai_response, created_at
+                        """SELECT id, page, session_id, title, user_input, ai_response, created_at
                            FROM chat_history
                            WHERE user_id = %s AND page = %s
                            ORDER BY created_at DESC LIMIT %s""",
@@ -568,7 +568,7 @@ class ChatHistoryDAO:
                     )
                 else:
                     cursor.execute(
-                        """SELECT id, page, title, user_input, ai_response, created_at
+                        """SELECT id, page, session_id, title, user_input, ai_response, created_at
                            FROM chat_history
                            WHERE user_id = %s
                            ORDER BY created_at DESC LIMIT %s""",
@@ -672,23 +672,38 @@ class ChatHistoryDAO:
                 return result
 
     def get_user_sessions(self, user_id: int, limit: int = 50) -> List[Dict]:
-        """获取用户会话列表（按 session_id 分组）"""
+        """获取用户所有对话历史（统一展示）"""
         with self.get_connection() as conn:
             with conn.cursor() as cursor:
+                # chat_agent 按 session_id 分组，其他页面的每条记录独立展示
                 cursor.execute(
-                    """SELECT session_id,
-                              MAX(CASE WHEN user_input != '__SESSION_START__'
-                                  THEN COALESCE(user_input, ai_response) ELSE NULL END) as title,
-                              COUNT(*) as message_count,
-                              MAX(created_at) as last_updated
+                    """SELECT
+                        CASE
+                            WHEN page = 'chat_agent' THEN session_id
+                            ELSE CONCAT('single_', CAST(id AS CHAR))
+                        END as session_key,
+                        page,
+                        MAX(CASE WHEN user_input != '__SESSION_START__'
+                            THEN COALESCE(user_input, ai_response) ELSE NULL END) as title,
+                        MAX(CASE WHEN user_input != '__SESSION_START__'
+                            THEN user_input ELSE NULL END) as user_input,
+                        MAX(CASE WHEN user_input != '__SESSION_START__'
+                            THEN ai_response ELSE NULL END) as ai_response,
+                        COUNT(*) as message_count,
+                        MAX(created_at) as last_updated,
+                        MAX(CASE WHEN page = 'chat_agent' THEN 1 ELSE 0 END) as is_session
                        FROM chat_history
-                       WHERE user_id = %s AND page = 'chat_agent'
-                       GROUP BY session_id
+                       WHERE user_id = %s
+                       GROUP BY session_key, page
                        ORDER BY last_updated DESC
                        LIMIT %s""",
                     (user_id, limit)
                 )
-                return cursor.fetchall()
+                rows = cursor.fetchall()
+                # 转换 is_session 标志
+                for row in rows:
+                    row['is_session'] = bool(row['is_session'])
+                return rows
 
     def delete_session(self, session_id: str, user_id: int) -> bool:
         """删除会话"""

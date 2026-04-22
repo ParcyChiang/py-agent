@@ -29,6 +29,7 @@ class ChatHistoryHttp:
         app.add_url_rule('/api/chat_history/search', endpoint='chat_history_search',
                          view_func=login_required(self.search_chats), methods=['GET'])
 
+
     def create_chat(self):
         """创建对话记录"""
         logger.info("create_chat 被调用")
@@ -108,3 +109,4 @@ class ChatHistoryHttp:
         except Exception as e:
             logger.error(f"搜索对话失败: {e}")
             return error(f"搜索失败: {str(e)}")
+

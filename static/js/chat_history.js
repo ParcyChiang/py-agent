@@ -5,6 +5,7 @@ class ChatHistoryManager {
         this.pageName = options.page || '';  // 当前页面标识
         this.currentFilter = '';  // 筛选条件，初始化为空表示"全部"
         this.onLoadChat = options.onLoadChat || null;
+        this.onNewChat = options.onNewChat || null;  // 新建对话回调
         this.init();
     }
 
@@ -26,13 +27,17 @@ class ChatHistoryManager {
         this.sidebar.innerHTML = `
             <div class="chat-history-header">
                 <h3>对话历史</h3>
-                <button class="chat-history-close" title="关闭">&times;</button>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button class="chat-history-new" id="btnNewChat" title="新建对话">+</button>
+                    <button class="chat-history-close" title="关闭">&times;</button>
+                </div>
             </div>
             <div class="chat-history-search">
                 <input type="text" placeholder="搜索对话历史..." class="chat-search-input">
             </div>
             <div class="chat-history-filters">
                 <span class="filter-tag active" data-page="">全部</span>
+                <span class="filter-tag" data-page="chat_agent">智能助手</span>
                 <span class="filter-tag" data-page="code_generator">代码生成</span>
                 <span class="filter-tag" data-page="report">日报中心</span>
                 <span class="filter-tag" data-page="analysis_report">运营报告</span>
@@ -62,6 +67,7 @@ class ChatHistoryManager {
         this.listContainer = this.sidebar.querySelector('.chat-history-list');
         this.searchInput = this.sidebar.querySelector('.chat-search-input');
         this.closeBtn = this.sidebar.querySelector('.chat-history-close');
+        this.newBtn = this.sidebar.querySelector('.chat-history-new');
         this.filterTags = this.sidebar.querySelectorAll('.filter-tag');
     }
 
@@ -74,6 +80,15 @@ class ChatHistoryManager {
 
         // 遮罩层点击
         this.overlay.addEventListener('click', () => this.close());
+
+        // 新建按钮 - chat_agent 页面调用回调，其他页面跳转
+        this.newBtn.addEventListener('click', () => {
+            if (this.pageName === 'chat_agent' && this.onNewChat) {
+                this.onNewChat();
+            } else {
+                window.location.href = '/page/chat';
+            }
+        });
 
         // 搜索
         let searchTimeout;
@@ -219,6 +234,7 @@ class ChatHistoryManager {
 
     async loadChatDetail(chatId) {
         try {
+            // 先获取单条记录，判断是否为 chat_agent session
             const response = await fetch(`/api/chat_history/get/${chatId}`, {
                 method: 'GET',
                 headers: {
@@ -230,17 +246,31 @@ class ChatHistoryManager {
             if (result.success) {
                 const chat = result.chat || (result.data && result.data.chat);
                 if (chat) {
-                    // 将对话数据存储到 sessionStorage
-                    sessionStorage.setItem('chat_to_load', JSON.stringify(chat));
-                    // 跳转到对应页面
-                    const pageUrls = {
-                        'code_generator': '/page/code_generator',
-                        'analysis_report': '/page/analysis_report',
-                        'compare': '/page/compare',
-                        'report': '/page/report'
-                    };
-                    const url = pageUrls[chat.page] || '/page/code_generator';
-                    window.location.href = url;
+                    // 如果有 onLoadChat 回调，调用它；否则跳转到对应页面
+                    if (this.onLoadChat) {
+                        // chat_agent 需要获取完整 session 信息
+                        if (chat.page === 'chat_agent' && chat.session_id) {
+                            // 获取 session 的所有消息
+                            const sessionResponse = await fetch(`/api/chat/history/${chat.session_id}`);
+                            const sessionResult = await sessionResponse.json();
+                            if (sessionResult.success) {
+                                chat.messages = sessionResult.data.messages || [];
+                            }
+                        }
+                        this.onLoadChat(chat);
+                    } else {
+                        // 将对话数据存储到 sessionStorage
+                        sessionStorage.setItem('chat_to_load', JSON.stringify(chat));
+                        // 跳转到对应页面
+                        const pageUrls = {
+                            'code_generator': '/page/code_generator',
+                            'analysis_report': '/page/analysis_report',
+                            'compare': '/page/compare',
+                            'report': '/page/report'
+                        };
+                        const url = pageUrls[chat.page] || '/page/code_generator';
+                        window.location.href = url;
+                    }
                 }
             }
         } catch (error) {

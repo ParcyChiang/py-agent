@@ -114,9 +114,16 @@ def init_database():
                     title VARCHAR(256) DEFAULT '' COMMENT '对话标题/摘要',
                     user_input TEXT NOT NULL COMMENT '用户输入',
                     ai_response TEXT COMMENT 'AI响应内容',
+                    session_id VARCHAR(64) NOT NULL DEFAULT '' COMMENT '会话ID，关联同一轮对话',
+                    message_order INT NOT NULL DEFAULT 0 COMMENT '消息顺序',
+                    action_type VARCHAR(32) DEFAULT NULL COMMENT '动作类型：query/mutation/optimize/explain',
+                    action_result TEXT DEFAULT NULL COMMENT '执行结果（JSON）',
+                    diff_content TEXT DEFAULT NULL COMMENT '变更Diff（JSON）',
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     INDEX idx_user_page (user_id, page),
-                    INDEX idx_user_created (user_id, created_at)
+                    INDEX idx_user_created (user_id, created_at),
+                    INDEX idx_session_id (session_id),
+                    INDEX idx_user_session (user_id, session_id)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             """)
 

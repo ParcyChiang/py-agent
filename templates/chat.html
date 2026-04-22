@@ -218,23 +218,6 @@
         </div>
     </div>
 
-    <!-- 历史记录侧边栏 (复用现有样式) -->
-    <div class="chat-history-overlay" id="historyOverlay"></div>
-    <div class="chat-history-sidebar" id="historySidebar">
-        <div class="chat-history-header">
-            <h3>对话历史</h3>
-            <div style="display: flex; gap: 8px; align-items: center;">
-                <button class="chat-history-close" id="btnNewSession" title="新建对话">+</button>
-                <button class="chat-history-close" id="btnCloseHistory" title="关闭">&times;</button>
-            </div>
-        </div>
-        <div class="chat-history-list" id="sessionList">
-            <div style="text-align:center;padding:20px;color:rgba(255,255,255,0.5);">
-                加载中...
-            </div>
-        </div>
-    </div>
-
     <!-- 确认弹窗 -->
     <div class="modal fade" id="confirmModal" tabindex="-1">
         <div class="modal-dialog">
@@ -271,97 +254,94 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/user_header.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chat_history.js') }}"></script>
     <script>
         let currentSessionId = null;
+        let currentChat = null;  // 当前选中的聊天记录
         let pendingPlan = null;
 
+        const pageNames = {
+            'chat_agent': '智能助手',
+            'code_generator': '代码生成',
+            'report': '日报中心',
+            'analysis_report': '运营报告',
+            'compare': '物流对比'
+        };
+
+        // 初始化对话历史管理器
+        let chatHistoryManager;
         document.addEventListener('DOMContentLoaded', function() {
-            // 绑定历史记录侧边栏事件
-            document.getElementById('historyOverlay').addEventListener('click', closeHistory);
-            document.getElementById('btnCloseHistory').addEventListener('click', closeHistory);
-            document.getElementById('btnNewSession').addEventListener('click', createNewSession);
+            chatHistoryManager = new ChatHistoryManager({
+                page: 'chat_agent',
+                onNewChat: function() {
+                    // 新建对话
+                    chatHistoryManager.close();
+                    showWelcome();
+                    document.getElementById('chatMessages').innerHTML = '';
+                    document.getElementById('welcomeBox').style.display = 'block';
+                    currentSessionId = null;
+                    currentChat = null;
+                },
+                onLoadChat: function(chat) {
+                    loadSession(chat);
+                }
+            });
         });
 
-        function toggleHistory() {
-            const sidebar = document.getElementById('historySidebar');
-            const overlay = document.getElementById('historyOverlay');
-            sidebar.classList.toggle('open');
-            overlay.classList.toggle('visible');
-            if (sidebar.classList.contains('open')) {
-                loadSessionList();
-            }
-        }
-
-        function closeHistory() {
-            document.getElementById('historySidebar').classList.remove('open');
-            document.getElementById('historyOverlay').classList.remove('visible');
-        }
-
-        function createNewSession() {
-            closeHistory();
-            fetch('/api/chat/sessions', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({title: '新对话'})
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    loadSession(data.data.session_id);
-                }
-            });
-        }
-
-        function loadSessionList() {
-            fetch('/api/chat/sessions')
-            .then(r => r.json())
-            .then(data => {
-                const list = document.getElementById('sessionList');
-                if (!data.success || !data.data.sessions || data.data.sessions.length === 0) {
-                    list.innerHTML = '<div class="empty-sessions">暂无对话历史<br><small>发送消息开始新对话</small></div>';
-                    return;
-                }
-                list.innerHTML = '';
-                data.data.sessions.forEach(session => {
-                    const div = document.createElement('div');
-                    div.className = 'session-list-item' + (session.session_id === currentSessionId ? ' active' : '');
-                    div.innerHTML = '<div class="session-item-title">' + escapeHtml(session.title || '新对话') + '</div><div class="session-item-meta">' + session.message_count + ' 条消息</div>';
-                    div.onclick = () => loadSession(session.session_id);
-                    list.appendChild(div);
-                });
-            });
-        }
-
-        function loadSession(sessionId) {
-            closeHistory();
-            currentSessionId = sessionId;
+        function loadSession(session) {
+            chatHistoryManager.close();
+            // 保存当前会话信息
+            currentSessionId = session.session_id || session.id;
+            currentChat = session;
 
             document.getElementById('welcomeBox').style.display = 'none';
             document.getElementById('noSessionMsg').style.display = 'none';
             document.getElementById('chatMessages').innerHTML = '';
-            document.getElementById('chatTitle').textContent = '加载中...';
 
-            fetch('/api/chat/history/' + sessionId)
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    if (!data.data.messages || data.data.messages.length === 0) {
-                        document.getElementById('noSessionMsg').style.display = 'block';
-                        document.getElementById('chatTitle').textContent = '新对话';
-                    } else {
-                        document.getElementById('chatTitle').textContent = '会话已加载';
-                        data.data.messages.forEach(msg => {
-                            addMessage(msg.role, msg.content, msg.action_type, msg.diff_content);
-                        });
-                    }
+            // 如果是 chat_agent 的多轮会话
+            if (session.page === 'chat_agent' && session.session_id) {
+                // 如果已经有 messages 数据（从 loadChatDetail 预取的），直接使用
+                if (session.messages && session.messages.length > 0) {
+                    document.getElementById('chatTitle').textContent = '会话已加载';
+                    session.messages.forEach(msg => {
+                        addMessage(msg.role, msg.content, msg.action_type, msg.diff_content);
+                    });
                     scrollToBottom();
                 } else {
-                    showWelcome();
+                    // 否则调用 API 获取消息
+                    document.getElementById('chatTitle').textContent = '加载中...';
+                    fetch('/api/chat/history/' + session.session_id)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success && data.data.messages && data.data.messages.length > 0) {
+                            document.getElementById('chatTitle').textContent = '会话已加载';
+                            data.data.messages.forEach(msg => {
+                                addMessage(msg.role, msg.content, msg.action_type, msg.diff_content);
+                            });
+                        } else {
+                            document.getElementById('noSessionMsg').style.display = 'block';
+                            document.getElementById('chatTitle').textContent = '新对话';
+                        }
+                        scrollToBottom();
+                    })
+                    .catch(() => {
+                        document.getElementById('noSessionMsg').style.display = 'block';
+                        scrollToBottom();
+                    });
                 }
-            })
-            .catch(() => {
-                showWelcome();
-            });
+            } else {
+                // 非 chat_agent 页面，直接显示单条记录
+                document.getElementById('chatTitle').textContent = pageNames[session.page] || '对话历史';
+                // 用户消息
+                if (session.user_input) {
+                    addMessage('user', session.user_input);
+                }
+                // AI 响应
+                if (session.ai_response) {
+                    addMessage('assistant', session.ai_response);
+                }
+                scrollToBottom();
+            }
         }
 
         function showWelcome() {
@@ -402,8 +382,9 @@
             const message = input.value.trim();
             if (!message) return;
 
-            if (!currentSessionId) {
-                fetch('/api/chat/sessions', {
+            // 如果当前不是 chat_agent 会话，创建新会话
+            if (!currentSessionId || currentSessionId.startsWith('single_')) {
+                fetch('/api/chat_history/sessions', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({title: message.substring(0, 30)})
@@ -411,26 +392,27 @@
                 .then(r => r.json())
                 .then(data => {
                     if (data.success) {
-                        loadSession(data.data.session_id);
-                        setTimeout(() => sendMessageReal(message), 200);
+                        const newSessionId = data.data.session_id;
+                        currentSessionId = newSessionId;
+                        sendMessageReal(newSessionId, message);
                     }
                 });
                 input.value = '';
                 return;
             }
 
-            sendMessageReal(message);
+            sendMessageReal(currentSessionId, message);
             input.value = '';
         }
 
-        function sendMessageReal(message) {
+        function sendMessageReal(sessionId, message) {
             addMessage('user', message);
             scrollToBottom();
 
             fetch('/api/chat/send', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({session_id: currentSessionId, message: message})
+                body: JSON.stringify({session_id: sessionId, message: message})
             })
             .then(r => r.json())
             .then(data => {
@@ -548,9 +530,6 @@
             div.textContent = text;
             return div.innerHTML;
         }
-
-        // 添加悬浮按钮来打开历史记录
-        document.write('<div class="chat-history-container" style="position:fixed;top:20px;left:20px;z-index:1001;padding:10px 16px;background:rgba(15,20,40,0.85);backdrop-filter:blur(15px);border-radius:8px;border:1px solid rgba(80,110,180,0.3);box-shadow:0 4px 20px rgba(0,0,0,0.3);"><button onclick="toggleHistory()" style="padding:8px 16px;background:rgba(60,140,180,0.85);color:white;cursor:pointer;font-size:14px;font-weight:500;border:none;border-radius:6px;">&#128172; 对话历史</button></div>');
     </script>
 </body>
 </html>
