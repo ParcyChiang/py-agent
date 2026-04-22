@@ -124,7 +124,6 @@
     // 改造 generateCode 函数以保存对话历史
     const originalGenerateCode = window.generateCode;
     window.generateCode = async function() {
-        console.log('[CodeGenerator] generateCode 被调用');
         const question = document.getElementById('questionInput').value.trim();
         if (!question) {
             alert('请输入您的问题！');
@@ -183,17 +182,13 @@
                                 cacheSet('generated_code', { question: question, code: data.code });
 
                                 // 保存到对话历史
-                                console.log('[CodeGenerator] 生成完成，准备保存对话');
                                 if (window.chatHistoryManager) {
-                                    console.log('[CodeGenerator] 调用 saveChat');
                                     window.chatHistoryManager.saveChat(
                                         'code_generator',
                                         question.substring(0, 50) + (question.length > 50 ? '...' : ''),
                                         question,
                                         data.code
                                     );
-                                } else {
-                                    console.log('[CodeGenerator] window.chatHistoryManager 不存在');
                                 }
                             } else if (data.type === 'error') {
                                 loading.style.display = 'none';

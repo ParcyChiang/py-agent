@@ -2,15 +2,16 @@
 
 class ChatHistoryManager {
     constructor(options = {}) {
-        this.currentPage = options.page || '';  // code_generator, analysis_report, compare
-        this.onLoadChat = options.onLoadChat || null;  // 加载对话的回调
+        this.pageName = options.page || '';  // 当前页面标识
+        this.currentFilter = '';  // 筛选条件，初始化为空表示"全部"
+        this.onLoadChat = options.onLoadChat || null;
         this.init();
     }
 
     init() {
         this.createSidebar();
         this.bindEvents();
-        this.loadChats();
+        // 初始化时不加载，等打开侧边栏时再加载
     }
 
     createSidebar() {
@@ -82,7 +83,7 @@ class ChatHistoryManager {
             tag.addEventListener('click', () => {
                 this.filterTags.forEach(t => t.classList.remove('active'));
                 tag.classList.add('active');
-                this.currentPage = tag.dataset.page;
+                this.currentFilter = tag.dataset.page;
                 this.loadChats();
             });
         });
@@ -91,11 +92,15 @@ class ChatHistoryManager {
     toggle() {
         this.sidebar.classList.toggle('open');
         this.overlay.classList.toggle('visible');
+        if (this.sidebar.classList.contains('open')) {
+            this.loadChats();  // 打开时加载
+        }
     }
 
     open() {
         this.sidebar.classList.add('open');
         this.overlay.classList.add('visible');
+        this.loadChats();  // 打开时加载
     }
 
     close() {
@@ -106,8 +111,8 @@ class ChatHistoryManager {
     async loadChats() {
         try {
             const params = new URLSearchParams();
-            if (this.currentPage) {
-                params.append('page', this.currentPage);
+            if (this.currentFilter) {
+                params.append('page', this.currentFilter);
             }
             params.append('limit', '50');
 
@@ -119,7 +124,6 @@ class ChatHistoryManager {
             });
 
             const result = await response.json();
-            console.log('[ChatHistory] 加载对话结果:', result);
             if (result.success && result.chats) {
                 this.renderChats(result.chats || []);
             } else if (result.success && result.data) {
@@ -161,7 +165,6 @@ class ChatHistoryManager {
     }
 
     renderChats(chats) {
-        console.log('[ChatHistory] renderChats 收到数据:', chats);
         if (!chats || chats.length === 0) {
             this.renderEmpty('暂无对话历史');
             return;
@@ -264,7 +267,6 @@ class ChatHistoryManager {
 
     // 保存对话到历史
     async saveChat(page, title, userInput, aiResponse) {
-        console.log('[ChatHistory] saveChat 被调用', { page, title, userInput, aiResponse });
         try {
             const response = await fetch('/api/chat_history/create', {
                 method: 'POST',
@@ -280,7 +282,6 @@ class ChatHistoryManager {
             });
 
             const result = await response.json();
-            console.log('[ChatHistory] 保存结果:', result);
             if (result.success) {
                 // 刷新列表
                 this.loadChats();
