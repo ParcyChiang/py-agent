@@ -16,6 +16,7 @@ from internal.service.users.http import UsersHttp
 from internal.service.admin_log.http import AdminLogHttp
 from internal.service.index.http import IndexHttp
 from internal.service.chat_history.http import ChatHistoryHttp
+from internal.service.chat_agent.http import ChatAgentHttp
 from internal.middleware import login_required, admin_required
 
 
@@ -37,6 +38,7 @@ def register_routes(app):
     admin_log_http = AdminLogHttp()
     index_http = IndexHttp()
     chat_history_http = ChatHistoryHttp()
+    chat_agent_http = ChatAgentHttp()
 
     # 注册各 page 模块的路由
     login_http.routes(app)
@@ -53,3 +55,4 @@ def register_routes(app):
     admin_log_http.routes(app)
     index_http.routes(app)
     chat_history_http.routes(app)
+    chat_agent_http.routes(app)
