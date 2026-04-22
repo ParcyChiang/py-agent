@@ -29,7 +29,7 @@ class ChatHistoryManager {
                 <h3>对话历史</h3>
                 <div style="display: flex; gap: 8px; align-items: center;">
                     <button class="chat-history-new" id="btnNewChat" title="新建对话">+</button>
-                    <button class="chat-history-close" title="关闭">&times;</button>
+                    <button class="chat-history-close" id="btnCloseHistory" title="关闭">&times;</button>
                 </div>
             </div>
             <div class="chat-history-search">

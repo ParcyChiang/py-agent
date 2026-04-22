@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>操作日志 - 物流智能分析</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chat_history.css') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -17,6 +18,8 @@
     </div>
     <script src="{{ url_for('static', filename='js/liquid-glass.js') }}"></script>
     <script src="{{ url_for('static', filename='js/user_header.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chat_history.js') }}"></script>
+    <script>window.chatHistoryManager = new ChatHistoryManager({ page: 'logs' });</script>
     <div class="container">
         <header>
             <h1>操作日志</h1>

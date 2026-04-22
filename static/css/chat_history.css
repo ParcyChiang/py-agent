@@ -23,6 +23,7 @@
     cursor: pointer;
     font-size: 14px;
     font-weight: 500;
+    border-radius: var(--border-radius-sm);
     transition: all 0.3s ease;
 }
 
@@ -105,6 +106,40 @@
 .chat-history-close:hover {
     background: rgba(239, 68, 68, 0.6);
     border-color: rgba(239, 68, 68, 0.8);
+}
+
+/* 模态框头部按钮 */
+.chat-history-new,
+.chat-history-close {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.chat-history-new {
+    background: rgba(60, 140, 100, 0.8);
+    color: white;
+}
+
+.chat-history-new:hover {
+    background: rgba(70, 150, 110, 0.9);
+}
+
+.chat-history-close {
+    background: rgba(200, 60, 60, 0.8);
+    color: white;
+}
+
+.chat-history-close:hover {
+    background: rgba(210, 70, 70, 0.9);
 }
 
 /* 搜索框 */
