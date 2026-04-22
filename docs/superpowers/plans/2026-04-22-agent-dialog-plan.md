@@ -655,11 +655,12 @@ class ExplainHandler(BaseHandler):
 
         try:
             # 构建对话上下文
-            messages = self._build_messages(context, user_message)
+            history = self._build_messages(context, user_message)
+            full_prompt = f"{self.SYSTEM_PROMPT}\n\n{history}"
 
             # 调用 AI 生成回复
             response_text = ""
-            async for chunk in self.model.generate_response_stream(user_message, self.SYSTEM_PROMPT):
+            async for chunk in self.model.generate_response_stream(full_prompt, ""):
                 if chunk['type'] == 'text':
                     response_text += chunk['content']
 
@@ -1607,35 +1608,6 @@ ALTER TABLE chat_history ADD INDEX idx_user_session (user_id, session_id);
 ```bash
 git add docs/superpowers/plans/2026-04-22-agent-dialog-migration.sql
 git commit -m "feat: 添加 Agent 对话数据库迁移 SQL"
-```
-
----
-
-## Chunk 7: 路由注册
-
-### Task 12: 注册 ChatAgentHttp
-
-**Files:**
-- Modify: `internal/service/service.py`
-
-- [ ] **Step 1: 添加 import 和注册**
-
-在 `internal/service/service.py` 文件顶部添加 import：
-```python
-from internal.service.chat_agent.http import ChatAgentHttp
-```
-
-在 `register_routes` 函数中注册：
-```python
-chat_agent_http = ChatAgentHttp()
-chat_agent_http.routes(app)
-```
-
-- [ ] **Step 2: Commit**
-
-```bash
-git add internal/service/service.py
-git commit -m "feat: 注册 ChatAgentHttp 路由"
 ```
 
 ---
