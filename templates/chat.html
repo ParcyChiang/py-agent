@@ -208,8 +208,15 @@
             cursor: pointer;
             padding: 4px;
             color: #666;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
         }
         .history-modal-actions button:hover {
+            background: #f0f0f0;
             color: #0d6efd;
         }
         .history-modal-body {
@@ -316,11 +323,9 @@
     <div class="history-modal" id="historyModal">
         <div class="history-modal-content">
             <div class="history-modal-header">
-                <div class="history-modal-actions">
-                    <button onclick="createNewSession()" title="新建对话">+</button>
-                </div>
                 <h5>历史记录</h5>
                 <div class="history-modal-actions">
+                    <button onclick="createNewSession()" title="新建对话">+</button>
                     <button onclick="closeHistory()" title="关闭">&times;</button>
                 </div>
             </div>
