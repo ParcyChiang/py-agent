@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+from typing import List, Optional, Dict
 from flask import request, render_template, Response, session
 
 from .service import ChatAgentService
