@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能物流助手 - 物流分析系统</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chat_history.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .chat-container {
+            max-width: 900px;
+            margin: 0 auto;
+            height: calc(100vh - 120px);
+            display: flex;
+            flex-direction: column;
+        }
+        .chat-header {
+            padding: 15px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8f9fa;
+        }
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #fff;
+        }
+        .message {
+            margin-bottom: 15px;
+            max-width: 80%;
+        }
+        .message.user {
+            margin-left: auto;
+        }
+        .message.assistant {
+            margin-right: auto;
+        }
+        .message-content {
+            padding: 12px 16px;
+            border-radius: 12px;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+        .message.user .message-content {
+            background: #0d6efd;
+            color: white;
+        }
+        .message.assistant .message-content {
+            background: #f1f3f4;
+            color: #333;
+        }
+        .chat-input-area {
+            padding: 15px;
+            border-top: 1px solid #ddd;
+            background: #f8f9fa;
+        }
+        .chat-input-group {
+            display: flex;
+            gap: 10px;
+        }
+        .chat-input {
+            flex: 1;
+            border-radius: 20px;
+            padding: 12px 20px;
+            border: 1px solid #ddd;
+        }
+        .chat-input:focus {
+            outline: none;
+            border-color: #0d6efd;
+        }
+        .btn-send {
+            border-radius: 20px;
+            padding: 10px 25px;
+        }
+        .welcome-message {
+            text-align: center;
+            color: #666;
+            padding: 50px 20px;
+        }
+        .welcome-message h4 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .welcome-message p {
+            margin: 8px 0;
+            font-size: 14px;
+        }
+        .history-sidebar {
+            position: fixed;
+            top: 0;
+            right: -320px;
+            width: 320px;
+            height: 100vh;
+            background: white;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+            transition: right 0.3s;
+            display: flex;
+            flex-direction: column;
+        }
+        .history-sidebar.open {
+            right: 0;
+        }
+        .sidebar-header {
+            padding: 15px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+        }
+        .session-item {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+        }
+        .session-item:hover {
+            background: #f8f9fa;
+        }
+        .session-title {
+            font-weight: 500;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .session-meta {
+            font-size: 12px;
+            color: #999;
+        }
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0,0,0,0.3);
+            z-index: 999;
+            display: none;
+        }
+        .overlay.show {
+            display: block;
+        }
+        .btn-history {
+            border-radius: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="user-header">
+        <span class="user-info"><span id="currentUser"></span></span>
+        <a class="btn-logout" href="/logout">退出</a>
+    </div>
+    <script src="{{ url_for('static', filename='js/liquid-glass.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/user_header.js') }}"></script>
+
+    <nav class="nav">
+        <a href="/">首页</a>
+        <a class="secondary" href="/page/upload">物流数据</a>
+        <a class="secondary" href="/page/analyze">运营分析</a>
+        <a class="secondary" href="/page/report">日报中心</a>
+        <a class="secondary" href="/page/analysis_report">运营报告</a>
+        <a class="secondary" href="/page/new_dashboard">实时监控</a>
+        <a class="secondary" href="/page/code_generator">代码生成器</a>
+        <a class="secondary" href="/page/compare">物流对比</a>
+    </nav>
+
+    <div class="container">
+        <div class="chat-container">
+            <div class="chat-header">
+                <button class="btn btn-outline-secondary btn-sm" onclick="goBack()">← 返回</button>
+                <h5 class="mb-0">智能物流助手</h5>
+                <button class="btn btn-outline-primary btn-sm btn-history" onclick="toggleHistory()">历史记录</button>
+            </div>
+
+            <div class="chat-messages" id="chatMessages">
+                <div class="welcome-message" id="welcomeMessage">
+                    <h4>欢迎使用智能物流助手</h4>
+                    <p>您可以：</p>
+                    <p>• 查询物流订单 "查一下最近3天的订单"</p>
+                    <p>• 修改订单状态 "把延误的改成已送达"</p>
+                    <p>• 优化物流线路 "帮我优化下物流"</p>
+                    <p>• 了解物流概念 "什么是SLA"</p>
+                </div>
+            </div>
+
+            <div class="chat-input-area">
+                <div class="chat-input-group">
+                    <input type="text" class="form-control chat-input" id="messageInput"
+                           placeholder="输入消息..." onkeypress="handleKeyPress(event)">
+                    <button class="btn btn-primary btn-send" onclick="sendMessage()">发送</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 历史记录侧边栏 -->
+    <div class="overlay" id="overlay" onclick="toggleHistory()"></div>
+    <div class="history-sidebar" id="historySidebar">
+        <div class="sidebar-header">
+            <h6 class="mb-0">历史记录</h6>
+            <button class="btn-close" onclick="toggleHistory()"></button>
+        </div>
+        <div class="p-2">
+            <button class="btn btn-primary btn-sm w-100 mb-2" onclick="createNewSession()">+ 新建对话</button>
+        </div>
+        <div class="sidebar-content" id="sessionList"></div>
+    </div>
+
+    <!-- 确认弹窗 -->
+    <div class="modal fade" id="confirmModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">确认操作</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="confirmModalBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="confirmBtn">确认</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Diff 弹窗 -->
+    <div class="modal fade" id="diffModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">变更预览</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="diffModalBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="diffConfirmBtn">确认执行</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentSessionId = '{{ session_id if session_id else "" }}';
+        let pendingPlan = null;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!currentSessionId) {
+                const urlParams = new URLSearchParams(window.location.search);
+                currentSessionId = urlParams.get('session_id') || '';
+            }
+
+            if (currentSessionId) {
+                loadHistory();
+            }
+            loadSessionList();
+        });
+
+        function goBack() {
+            window.location.href = '/page/index';
+        }
+
+        function toggleHistory() {
+            const sidebar = document.getElementById('historySidebar');
+            const overlay = document.getElementById('overlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('show');
+        }
+
+        function createNewSession() {
+            fetch('/api/chat/sessions', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({title: '新对话'})
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    currentSessionId = data.data.session_id;
+                    document.getElementById('chatMessages').innerHTML = '';
+                    document.getElementById('welcomeMessage').style.display = 'none';
+                    toggleHistory();
+                    loadHistory();
+                }
+            });
+        }
+
+        function loadSessionList() {
+            fetch('/api/chat/sessions')
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    const list = document.getElementById('sessionList');
+                    list.innerHTML = '';
+                    if (data.data.sessions.length === 0) {
+                        list.innerHTML = '<div class="p-3 text-muted text-center">暂无历史记录</div>';
+                        return;
+                    }
+                    data.data.sessions.forEach(session => {
+                        const div = document.createElement('div');
+                        div.className = 'session-item';
+                        div.innerHTML = `
+                            <div class="session-title">${escapeHtml(session.title || '新对话')}</div>
+                            <div class="session-meta">${session.message_count} 条消息</div>
+                        `;
+                        div.onclick = () => loadSession(session.session_id);
+                        list.appendChild(div);
+                    });
+                }
+            });
+        }
+
+        function loadSession(sessionId) {
+            currentSessionId = sessionId;
+            window.location.href = '/page/chat/' + sessionId;
+        }
+
+        function loadHistory() {
+            if (!currentSessionId) return;
+
+            document.getElementById('welcomeMessage').style.display = 'none';
+
+            fetch('/api/chat/history/' + currentSessionId)
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    const container = document.getElementById('chatMessages');
+                    container.innerHTML = '';
+                    if (data.data.messages.length === 0) {
+                        container.innerHTML = '<div class="welcome-message"><h4>开始新对话</h4></div>';
+                    } else {
+                        data.data.messages.forEach(msg => {
+                            addMessage(msg.role, msg.content, msg.action_type, msg.diff_content);
+                        });
+                    }
+                    scrollToBottom();
+                }
+            });
+        }
+
+        function addMessage(role, content, actionType, diffContent) {
+            const container = document.getElementById('chatMessages');
+            const div = document.createElement('div');
+            div.className = 'message ' + role;
+
+            let extra = '';
+            if (role === 'assistant' && actionType === 'mutation' && diffContent) {
+                try {
+                    const diff = JSON.parse(diffContent);
+                    if (diff.before && diff.after) {
+                        extra = '<div class="text-success small mt-1">✓ 已执行变更</div>';
+                    }
+                } catch(e) {}
+            }
+
+            div.innerHTML = '<div class="message-content">' + escapeHtml(content).replace(/\n/g, '<br>') + extra + '</div>';
+            container.appendChild(div);
+        }
+
+        function handleKeyPress(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            if (!message) return;
+
+            if (!currentSessionId) {
+                createNewSessionForMessage(message);
+                return;
+            }
+
+            sendMessageReal(message);
+            input.value = '';
+        }
+
+        function createNewSessionForMessage(message) {
+            fetch('/api/chat/sessions', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({title: message.substring(0, 30)})
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    currentSessionId = data.data.session_id;
+                    document.getElementById('welcomeMessage').style.display = 'none';
+                    sendMessageReal(message);
+                    document.getElementById('messageInput').value = '';
+                }
+            });
+        }
+
+        function sendMessageReal(message) {
+            addMessage('user', message);
+            scrollToBottom();
+
+            fetch('/api/chat/send', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({session_id: currentSessionId, message: message})
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    const result = data.data;
+                    addMessage('assistant', result.content, result.type);
+
+                    if (result.need_confirm && result.action_plan) {
+                        pendingPlan = result.action_plan;
+                        showIntentConfirm(result.action_plan);
+                    }
+                    scrollToBottom();
+                } else {
+                    addMessage('assistant', '抱歉，处理失败: ' + data.message);
+                    scrollToBottom();
+                }
+            })
+            .catch(err => {
+                addMessage('assistant', '网络错误，请稍后重试');
+                scrollToBottom();
+            });
+        }
+
+        function showIntentConfirm(plan) {
+            const body = document.getElementById('confirmModalBody');
+            body.innerHTML = '<p>' + (plan.description || '确认执行此操作？') + '</p><p class="text-muted">将影响 ' + plan.affected_count + ' 条记录</p>';
+
+            document.getElementById('confirmBtn').onclick = () => {
+                bootstrap.Modal.getInstance(document.getElementById('confirmModal')).hide();
+                confirmIntent();
+            };
+
+            new bootstrap.Modal(document.getElementById('confirmModal')).show();
+        }
+
+        function confirmIntent() {
+            fetch('/api/chat/confirm', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    session_id: currentSessionId,
+                    step: 'intent',
+                    confirmed: true,
+                    plan: pendingPlan
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && data.data.need_diff_confirm) {
+                    showDiffConfirm(data.data.diff);
+                } else if (data.success) {
+                    addMessage('assistant', data.data.content || '操作完成');
+                    loadHistory();
+                } else {
+                    addMessage('assistant', data.message || '操作已取消');
+                }
+                scrollToBottom();
+            });
+        }
+
+        function showDiffConfirm(diff) {
+            const before = diff.before || [];
+            const after = diff.after || [];
+
+            let tableHtml = '<table class="table table-sm"><thead><tr><th>订单ID</th><th>原状态</th><th>新状态</th></tr></thead><tbody>';
+
+            for (let i = 0; i < before.length; i++) {
+                tableHtml += '<tr><td>' + escapeHtml(before[i].id) + '</td><td>' + escapeHtml(before[i].status) + '</td><td class="text-success">' + escapeHtml(after[i]?.status || '') + '</td></tr>';
+            }
+
+            tableHtml += '</tbody></table>';
+
+            document.getElementById('diffModalBody').innerHTML = tableHtml;
+
+            document.getElementById('diffConfirmBtn').onclick = () => {
+                bootstrap.Modal.getInstance(document.getElementById('diffModal')).hide();
+                confirmDiff();
+            };
+
+            new bootstrap.Modal(document.getElementById('diffModal')).show();
+        }
+
+        function confirmDiff() {
+            fetch('/api/chat/confirm', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    session_id: currentSessionId,
+                    step: 'diff',
+                    confirmed: true,
+                    plan: pendingPlan
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    addMessage('assistant', data.data.message || '操作执行成功');
+                    pendingPlan = null;
+                    loadHistory();
+                } else {
+                    addMessage('assistant', '操作失败: ' + data.message);
+                }
+                scrollToBottom();
+            });
+        }
+
+        function scrollToBottom() {
+            const container = document.getElementById('chatMessages');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
