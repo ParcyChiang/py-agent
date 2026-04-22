@@ -284,10 +284,10 @@ class BaseHandler(ABC):
             return default
 ```
 
-- [ ] **Step 2: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
-git add internal/service/chat_agent/handlers/base.py
+git add internal/service/chat_agent/__init__.py internal/service/chat_agent/handlers/__init__.py internal/service/chat_agent/handlers/base.py
 git commit -m "feat: 添加 Handler 基类 HandlerResponse"
 ```
 
@@ -1401,7 +1401,7 @@ function addMessage(role, content, actionType, diffContent) {
         div.innerHTML = `
             <div class="d-flex justify-content-start">
                 <div class="bg-light p-2 rounded border" style="max-width: 70%;">
-                    ${content.replace(/\n/g, '<br>')}
+                    ${escapeHtml(content).replace(/\n/g, '<br>')}
                     ${extra}
                 </div>
             </div>
