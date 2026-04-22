@@ -45,12 +45,17 @@ class ChatHistoryManager {
         `;
         document.body.appendChild(this.sidebar);
 
-        // 创建切换按钮
+        // 创建历史按钮容器 - 左上角悬浮样式
+        this.historyContainer = document.createElement('div');
+        this.historyContainer.className = 'chat-history-container';
+
         this.toggleBtn = document.createElement('button');
         this.toggleBtn.className = 'chat-history-toggle';
-        this.toggleBtn.innerHTML = '&#128172;';  // 语音气泡图标
+        this.toggleBtn.innerHTML = '&#128172; 对话历史';
         this.toggleBtn.title = '对话历史';
-        document.body.appendChild(this.toggleBtn);
+
+        this.historyContainer.appendChild(this.toggleBtn);
+        document.body.appendChild(this.historyContainer);
 
         // 缓存DOM引用
         this.listContainer = this.sidebar.querySelector('.chat-history-list');
