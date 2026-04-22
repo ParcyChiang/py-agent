@@ -1,18 +1,36 @@
 // analysis_report.js - 运营分析报告页面
 
 $(function(){
+    // 检查是否有需要恢复的对话
+    const chatData = sessionStorage.getItem('chat_to_load');
+    if (chatData) {
+        sessionStorage.removeItem('chat_to_load');
+        try {
+            const chat = JSON.parse(chatData);
+            if (chat.page === 'analysis_report') {
+                if (chat.title && chat.title.includes('日报')) {
+                    $('#dailyReportContent').html(chat.ai_response || '');
+                } else {
+                    $('#analysisContent').html(chat.ai_response || '');
+                }
+            }
+        } catch (e) {
+            console.error('恢复对话数据失败:', e);
+        }
+    }
+
     // 页面加载时从缓存恢复数据
     const savedAnalysis = cacheGet('analysis_report');
-    if (savedAnalysis) {
+    if (savedAnalysis && !chatData) {
         $('#analysisContent').html(savedAnalysis);
     }
     const savedDaily = cacheGet('daily_report');
-    if (savedDaily) {
+    if (savedDaily && !chatData) {
         $('#dailyReportContent').html(savedDaily);
     }
 
     // AI分析报告按钮
-    $('#genAnalysisBtn').on('click', async function() {
+    $('#genAnalysisBtn').off('click').on('click', async function() {
         const $btn = $(this);
         const $content = $('#analysisContent');
         $btn.prop('disabled', true);
@@ -45,6 +63,7 @@ $(function(){
                             } else if (data.type === 'done') {
                                 $content.html(data.content);
                                 cacheSet('analysis_report', data.content);
+                                console.log('[Analysis] 生成完成，后端自动保存到对话历史');
                             } else if (data.type === 'error') {
                                 $content.html('<div class="error">生成失败：' + data.content + '</div>');
                             }
@@ -60,7 +79,7 @@ $(function(){
     });
 
     // 每日运营报告按钮
-    $('#genDailyReportBtn').on('click', async function() {
+    $('#genDailyReportBtn').off('click').on('click', async function() {
         const $btn = $(this);
         const $content = $('#dailyReportContent');
         $btn.prop('disabled', true);
@@ -85,7 +104,11 @@ $(function(){
                         try {
                             const data = JSON.parse(line.slice(6));
                             if (data.type === 'thinking') {
-                                $content.html('<em style="color:#666;">生成中：' + data.content + '</em>');
+                                if (isThinking) {
+                                    $content.html('<em style="color:#666;">生成中：' + data.content + '</em>');
+                                } else {
+                                    $content.html(fullContent + '\n\n<em style="color:#666;">继续生成...</em>');
+                                }
                             } else if (data.type === 'text') {
                                 isThinking = false;
                                 fullContent += data.content;
@@ -93,6 +116,7 @@ $(function(){
                             } else if (data.type === 'done') {
                                 $content.html(data.content);
                                 cacheSet('daily_report', data.content);
+                                console.log('[Daily Report] 生成完成，后端自动保存到对话历史');
                             } else if (data.type === 'error') {
                                 $content.html('<div class="error">生成失败：' + data.content + '</div>');
                             }

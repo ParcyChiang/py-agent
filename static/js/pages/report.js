@@ -1,13 +1,27 @@
 // report.js - 日报中心页面
 
 $(function(){
+    // 检查是否有需要恢复的对话
+    const chatData = sessionStorage.getItem('chat_to_load');
+    if (chatData) {
+        sessionStorage.removeItem('chat_to_load');
+        try {
+            const chat = JSON.parse(chatData);
+            if (chat.page === 'report' && chat.ai_response) {
+                $('#dailyReportContent').html(chat.ai_response || '');
+            }
+        } catch (e) {
+            console.error('恢复对话数据失败:', e);
+        }
+    }
+
     // 页面加载时从缓存恢复数据
     const savedReport = cacheGet('daily_report');
-    if (savedReport) {
+    if (savedReport && !chatData) {
         $('#dailyReportContent').html(savedReport);
     }
 
-    $('#genReportBtn').on('click', async function() {
+    $('#genReportBtn').off('click').on('click', async function() {
         const $content = $('#dailyReportContent');
         const $btn = $(this);
         $btn.prop('disabled', true);
@@ -44,6 +58,7 @@ $(function(){
                             } else if (data.type === 'done') {
                                 $content.html(data.content);
                                 cacheSet('daily_report', data.content);
+                                console.log('[Report] 生成完成，后端自动保存到对话历史');
                             } else if (data.type === 'error') {
                                 $content.html('<div class="error">生成失败：' + data.content + '</div>');
                             }

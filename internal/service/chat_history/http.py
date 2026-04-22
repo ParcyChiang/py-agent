@@ -19,7 +19,7 @@ class ChatHistoryHttp:
     def routes(self, app):
         """注册对话历史路由"""
         app.add_url_rule('/api/chat_history/create', endpoint='chat_history_create',
-                         view_func=login_required(self.create_chat), methods=['POST'])
+                         view_func=self.create_chat, methods=['POST'])
         app.add_url_rule('/api/chat_history/list', endpoint='chat_history_list',
                          view_func=login_required(self.list_chats), methods=['GET'])
         app.add_url_rule('/api/chat_history/get/<int:chat_id>', endpoint='chat_history_get',
@@ -31,20 +31,25 @@ class ChatHistoryHttp:
 
     def create_chat(self):
         """创建对话记录"""
+        logger.info("create_chat 被调用")
         data = request.get_json()
         page = data.get('page', '')
         title = data.get('title', '')
         user_input = data.get('user_input', '')
         ai_response = data.get('ai_response', '')
+        logger.info(f"create_chat params: page={page}, title={title}, user_input_len={len(user_input)}, ai_response_len={len(ai_response) if ai_response else 0}")
 
         if not page or not user_input:
             return error('page和user_input不能为空')
 
         user_id = session.get('user_id')
         username = session.get('username', '')
+        logger.info(f"create_chat session: user_id={user_id}, username={username}")
 
         try:
+            logger.info("开始创建对话记录...")
             chat_id = self.dao.create_chat(user_id, username, page, title, user_input, ai_response)
+            logger.info(f"创建成功，chat_id={chat_id}")
             return success(data={'id': chat_id})
         except Exception as e:
             logger.error(f"创建对话记录失败: {e}")

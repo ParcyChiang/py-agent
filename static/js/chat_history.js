@@ -34,6 +34,7 @@ class ChatHistoryManager {
             <div class="chat-history-filters">
                 <span class="filter-tag active" data-page="">全部</span>
                 <span class="filter-tag" data-page="code_generator">代码生成</span>
+                <span class="filter-tag" data-page="report">日报中心</span>
                 <span class="filter-tag" data-page="analysis_report">运营报告</span>
                 <span class="filter-tag" data-page="compare">物流对比</span>
             </div>
@@ -178,7 +179,8 @@ class ChatHistoryManager {
         const pageNames = {
             'code_generator': '代码生成',
             'analysis_report': '运营报告',
-            'compare': '物流对比'
+            'compare': '物流对比',
+            'report': '日报中心'
         };
 
         this.listContainer.innerHTML = chats.map(chat => `
@@ -234,7 +236,8 @@ class ChatHistoryManager {
                     const pageUrls = {
                         'code_generator': '/page/code_generator',
                         'analysis_report': '/page/analysis_report',
-                        'compare': '/page/compare'
+                        'compare': '/page/compare',
+                        'report': '/page/report'
                     };
                     const url = pageUrls[chat.page] || '/page/code_generator';
                     window.location.href = url;
@@ -272,7 +275,17 @@ class ChatHistoryManager {
 
     // 保存对话到历史
     async saveChat(page, title, userInput, aiResponse) {
+        console.log('[ChatHistory] saveChat 被调用', { page, title, userInput, aiResponseLen: aiResponse?.length });
+
+        // 使用 AbortController 添加超时
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+
         try {
+            console.log('[ChatHistory] 发送请求...');
+            // 截断过长的 ai_response 以测试
+            const truncatedAiResponse = aiResponse?.length > 50000 ? aiResponse.substring(0, 50000) + '...[截断]' : aiResponse;
+
             const response = await fetch('/api/chat_history/create', {
                 method: 'POST',
                 headers: {
@@ -282,18 +295,28 @@ class ChatHistoryManager {
                     page: page,
                     title: title,
                     user_input: userInput,
-                    ai_response: aiResponse
-                })
+                    ai_response: truncatedAiResponse
+                }),
+                signal: controller.signal
             });
+            clearTimeout(timeoutId);
+            console.log('[ChatHistory] 收到响应 status:', response.status);
+
+            if (!response.ok) {
+                console.error('[ChatHistory] HTTP错误:', response.status, response.statusText);
+                return null;
+            }
 
             const result = await response.json();
+            console.log('[ChatHistory] 保存结果:', result);
             if (result.success) {
                 // 刷新列表
                 this.loadChats();
                 return result.id;
             }
         } catch (error) {
-            console.error('[ChatHistory] 保存对话失败:', error);
+            clearTimeout(timeoutId);
+            console.error('[ChatHistory] 保存对话失败:', error.name, error.message);
         }
         return null;
     }

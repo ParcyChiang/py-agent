@@ -6,8 +6,25 @@ function setQuestion(question) {
 
 // 页面加载时恢复缓存数据
 $(function(){
+    // 检查是否有需要恢复的对话
+    const chatData = sessionStorage.getItem('chat_to_load');
+    if (chatData) {
+        sessionStorage.removeItem('chat_to_load');
+        try {
+            const chat = JSON.parse(chatData);
+            if (chat.page === 'code_generator') {
+                document.getElementById('questionInput').value = chat.user_input || '';
+                document.getElementById('generatedCode').textContent = chat.ai_response || '';
+                document.getElementById('codeContainer').style.display = chat.ai_response ? 'block' : 'none';
+                document.getElementById('executeBtn').disabled = !chat.ai_response;
+            }
+        } catch (e) {
+            console.error('恢复对话数据失败:', e);
+        }
+    }
+
     const savedCode = cacheGet('generated_code');
-    if (savedCode) {
+    if (savedCode && !chatData) {
         document.getElementById('questionInput').value = savedCode.question || '';
         document.getElementById('generatedCode').textContent = savedCode.code || '';
         if (savedCode.code) {
@@ -86,6 +103,7 @@ async function generateCode() {
                             loading.style.display = 'none';
                             executeBtn.disabled = false;
                             cacheSet('generated_code', { question: question, code: data.code });
+                            console.log('[CodeGen] 生成完成，后端自动保存到对话历史');
                         } else if (data.type === 'error') {
                             loading.style.display = 'none';
                             generatedCode.textContent = '生成失败：' + data.content;

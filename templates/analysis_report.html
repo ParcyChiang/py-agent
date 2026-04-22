@@ -52,33 +52,12 @@
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="{{ url_for('static', filename='js/cache.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/pages/analysis_report.js') }}"></script>
     <script src="{{ url_for('static', filename='js/chat_history.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/pages/analysis_report.js') }}"></script>
     <script>
-    // 页面加载时检查是否有需要恢复的对话
-    $(function() {
-        const chatData = sessionStorage.getItem('chat_to_load');
-        if (chatData) {
-            sessionStorage.removeItem('chat_to_load');
-            try {
-                const chat = JSON.parse(chatData);
-                if (chat.page === 'analysis_report') {
-                    if (chat.title && chat.title.includes('日报')) {
-                        $('#dailyReportContent').html(chat.ai_response || '');
-                    } else {
-                        $('#analysisContent').html(chat.ai_response || '');
-                    }
-                }
-            } catch (e) {
-                console.error('恢复对话数据失败:', e);
-            }
-        }
-    });
-
-    // 初始化对话历史管理器
     window.chatHistoryManager = new ChatHistoryManager({
         page: 'analysis_report',
-        onLoadChat: null  // 点击历史记录会跳转到对应页面
+        onLoadChat: null
     });
     </script>
 </body>

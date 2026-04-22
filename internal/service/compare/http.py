@@ -3,10 +3,11 @@
 import asyncio
 import json
 import logging
-from flask import request, render_template, Response
+from flask import request, render_template, Response, session
 
 from internal.service.compare.service import CompareService
 from internal.pkg.response import success, error
+from internal.pkg.dao import ChatHistoryDAO
 from internal.middleware import login_required
 
 logger = logging.getLogger("LogisticsAgent")
@@ -17,6 +18,7 @@ class CompareHttp:
 
     def __init__(self):
         self.service = CompareService()
+        self.chat_dao = ChatHistoryDAO()
 
     def routes(self, app):
         """注册物流对比路由"""
@@ -53,6 +55,10 @@ class CompareHttp:
 
     def analyze_comparison_stream(self):
         """SSE流式分析物流对比数据"""
+        # 在请求上下文内提前获取 session 值
+        user_id = session.get('user_id') or 0
+        username = session.get('username', '游客')
+
         # 在请求上下文内获取数据
         data = request.get_json()
         comparison_data = data.get('comparison_data', []) if data else []
@@ -65,13 +71,29 @@ class CompareHttp:
 
             try:
                 async def stream_result():
+                    full_content = ""  # 累积完整分析内容
                     async for item in self.service.analyze_comparison_stream(comparison_data):
                         if item['type'] == 'thinking':
                             yield f"data: {json.dumps({'type': 'thinking', 'content': item['content']})}\n\n"
                         elif item['type'] == 'text':
+                            full_content += item['content']
                             yield f"data: {json.dumps({'type': 'text', 'content': item['content']})}\n\n"
                         elif item['type'] == 'done':
                             yield f"data: {json.dumps({'type': 'end'})}\n\n"
+                            # 保存到对话历史
+                            if full_content:
+                                try:
+                                    self.chat_dao.create_chat(
+                                        user_id=user_id,
+                                        username=username,
+                                        page='compare',
+                                        title='物流对比分析 - ' + full_content[:50],
+                                        user_input='物流对比分析',
+                                        ai_response=full_content
+                                    )
+                                    logger.info(f"物流对比分析已自动保存到对话历史, user_id={user_id}")
+                                except Exception as e:
+                                    logger.error(f"保存物流对比分析到对话历史失败: {e}")
                             return
                         elif item['type'] == 'error':
                             yield f"data: {json.dumps({'type': 'error', 'content': item['content']})}\n\n"

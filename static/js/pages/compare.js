@@ -5,6 +5,23 @@ $(function(){
     var currentPage = 1;
     var pageSize = 10;
 
+    // 检查是否有需要恢复的对话
+    var chatRestored = false;
+    var chatData = sessionStorage.getItem('chat_to_load');
+    if (chatData) {
+        sessionStorage.removeItem('chat_to_load');
+        try {
+            var chat = JSON.parse(chatData);
+            if (chat.page === 'compare' && chat.ai_response) {
+                // 物流对比页面可以存储分析结果到缓存，下次显示
+                cacheSet('comparison_analysis_restored', chat.ai_response);
+                chatRestored = true;
+            }
+        } catch (e) {
+            console.error('恢复对话数据失败:', e);
+        }
+    }
+
     // 页面加载时从缓存恢复数据
     var savedComparison = cacheGet('comparison_data');
     if (savedComparison) {
@@ -343,6 +360,7 @@ $(function(){
                                     analysisDiv.html('<h4>智能分析结果</h4><div class="markdown-body">' + markdownContent + '</div>');
                                 } else if (data.type === 'end') {
                                     cacheSet('comparison_analysis_' + index + '_' + page, fullContent);
+                                    console.log('[Compare] 分析完成，后端自动保存到对话历史');
                                 } else if (data.type === 'error') {
                                     analysisDiv.html('<h4>分析失败</h4><p>' + data.content + '</p>');
                                 }

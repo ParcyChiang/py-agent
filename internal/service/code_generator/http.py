@@ -4,10 +4,11 @@ import asyncio
 import time
 import json
 import logging
-from flask import request, render_template, Response
+from flask import request, render_template, Response, session
 
 from internal.service.code_generator.service import CodeGenService
 from internal.pkg.response import success, error
+from internal.pkg.dao import ChatHistoryDAO
 from internal.middleware import login_required
 
 logger = logging.getLogger("LogisticsAgent")
@@ -18,6 +19,7 @@ class CodeGeneratorHttp:
 
     def __init__(self):
         self.service = CodeGenService()
+        self.chat_dao = ChatHistoryDAO()
 
     def routes(self, app):
         """注册代码生成路由"""
@@ -33,6 +35,10 @@ class CodeGeneratorHttp:
 
     def generate_code_stream(self):
         """SSE流式生成代码，实时发送thinking让前端显示"""
+        # 在请求上下文内提前获取 session 值
+        user_id = session.get('user_id') or 0
+        username = session.get('username', '游客')
+
         data = request.get_json()
         question = data.get('question', '').strip()
 
@@ -74,10 +80,19 @@ class CodeGeneratorHttp:
 
                 # 运行异步生成器
                 gen = stream_result()
+                done_code = None
                 try:
                     while True:
                         try:
                             chunk = loop.run_until_complete(gen.__anext__())
+                            # 捕获 done 类型的 code 用于后续入库
+                            if done_code is None and 'done' in chunk:
+                                try:
+                                    data = json.loads(chunk.split('data: ')[1].split('\n')[0])
+                                    if data.get('type') == 'done':
+                                        done_code = data.get('code', '')
+                                except:
+                                    pass
                             yield chunk
                         except StopAsyncIteration:
                             break
@@ -85,6 +100,20 @@ class CodeGeneratorHttp:
                     logger.error(f"流式生成异常: {e}")
                     yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
 
+                # 流结束后，保存到对话历史
+                if done_code:
+                    try:
+                        self.chat_dao.create_chat(
+                            user_id=user_id,
+                            username=username,
+                            page='code_generator',
+                            title='代码生成 - ' + question[:50],
+                            user_input=question,
+                            ai_response=done_code
+                        )
+                        logger.info(f"代码生成已自动保存到对话历史, user_id={user_id}")
+                    except Exception as e:
+                        logger.error(f"保存代码生成到对话历史失败: {e}")
             finally:
                 loop.close()
 
