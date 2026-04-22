@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>智能物流助手 - 物流分析系统</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chat_history.css') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -121,140 +122,44 @@
             font-size: 12px;
             margin-top: 8px;
         }
-
-        /* 悬浮按钮 */
-        .floating-btns {
-            position: fixed;
-            top: 80px;
-            left: 0;
-            right: 0;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-            display: flex;
-            justify-content: space-between;
-            z-index: 100;
-            pointer-events: none;
-        }
-        .floating-btns > * {
-            pointer-events: auto;
-        }
-        .floating-btn {
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            background: white;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.15);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.2s;
-            border: none;
-            font-size: 18px;
-            color: #333;
-        }
-        .floating-btn:hover {
-            background: #f0f0f0;
-            transform: scale(1.05);
-        }
-
-        /* 历史记录模态框 */
-        .history-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 1050;
-            display: none;
-            align-items: flex-start;
-            justify-content: center;
-            padding-top: 60px;
-        }
-        .history-modal.show {
-            display: flex;
-        }
-        .history-modal-content {
-            background: white;
-            border-radius: 12px;
-            width: 90%;
-            max-width: 400px;
-            max-height: 70vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-        .history-modal-header {
-            padding: 16px 20px;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .history-modal-header h5 {
-            margin: 0;
-            font-size: 16px;
-        }
-        .history-modal-actions {
-            display: flex;
-            gap: 12px;
-        }
-        .history-modal-actions button {
-            background: none;
-            border: none;
-            font-size: 18px;
-            cursor: pointer;
-            padding: 4px;
-            color: #666;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 28px;
-            height: 28px;
-            border-radius: 6px;
-        }
-        .history-modal-actions button:hover {
-            background: #f0f0f0;
-            color: #0d6efd;
-        }
-        .history-modal-body {
-            flex: 1;
-            overflow-y: auto;
-            padding: 12px 0;
-        }
-        .session-item {
-            padding: 12px 20px;
-            cursor: pointer;
-            transition: background 0.15s;
-        }
-        .session-item:hover {
-            background: #f8f9fa;
-        }
-        .session-item.active {
-            background: #e7f3ff;
-        }
-        .session-item-title {
-            font-weight: 500;
-            margin-bottom: 4px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .session-item-meta {
-            font-size: 12px;
-            color: #999;
-        }
-        .empty-history {
-            padding: 40px 20px;
-            text-align: center;
-            color: #999;
-        }
         .no-session-selected {
             text-align: center;
             padding: 60px 20px;
             color: #999;
+        }
+
+        /* 会话列表项 */
+        .session-list-item {
+            padding: 14px 20px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+        .session-list-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-left-color: rgba(100, 140, 220, 0.5);
+        }
+        .session-list-item.active {
+            background: rgba(14, 165, 233, 0.15);
+            border-left-color: rgba(14, 165, 233, 0.8);
+        }
+        .session-item-title {
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 6px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .session-item-meta {
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 11px;
+        }
+        .empty-sessions {
+            padding: 40px 20px;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.5);
         }
     </style>
 </head>
@@ -284,12 +189,6 @@
             </div>
         </nav>
 
-        <!-- 悬浮按钮 -->
-        <div class="floating-btns">
-            <button class="floating-btn" onclick="toggleHistory()" title="历史记录">&#9776;</button>
-            <button class="floating-btn" onclick="createNewSession()" title="新建对话">+</button>
-        </div>
-
         <div class="chat-wrapper">
             <div class="chat-header">
                 <h3 id="chatTitle">智能物流助手</h3>
@@ -305,7 +204,7 @@
                     <p>• 了解物流概念 "什么是SLA"</p>
                 </div>
                 <div class="no-session-selected" id="noSessionMsg" style="display:none;">
-                    请从左侧选择历史会话或创建新对话
+                    请从左侧选择历史会话或发送消息开始新对话
                 </div>
             </div>
 
@@ -319,17 +218,20 @@
         </div>
     </div>
 
-    <!-- 历史记录模态框 -->
-    <div class="history-modal" id="historyModal">
-        <div class="history-modal-content">
-            <div class="history-modal-header">
-                <h5>历史记录</h5>
-                <div class="history-modal-actions">
-                    <button onclick="createNewSession()" title="新建对话">+</button>
-                    <button onclick="closeHistory()" title="关闭">&times;</button>
-                </div>
+    <!-- 历史记录侧边栏 (复用现有样式) -->
+    <div class="chat-history-overlay" id="historyOverlay"></div>
+    <div class="chat-history-sidebar" id="historySidebar">
+        <div class="chat-history-header">
+            <h3>对话历史</h3>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <button class="chat-history-close" id="btnNewSession" title="新建对话">+</button>
+                <button class="chat-history-close" id="btnCloseHistory" title="关闭">&times;</button>
             </div>
-            <div class="history-modal-body" id="sessionList"></div>
+        </div>
+        <div class="chat-history-list" id="sessionList">
+            <div style="text-align:center;padding:20px;color:rgba(255,255,255,0.5);">
+                加载中...
+            </div>
         </div>
     </div>
 
@@ -374,31 +276,25 @@
         let pendingPlan = null;
 
         document.addEventListener('DOMContentLoaded', function() {
-            // 默认显示欢迎页
-            showWelcome();
+            // 绑定历史记录侧边栏事件
+            document.getElementById('historyOverlay').addEventListener('click', closeHistory);
+            document.getElementById('btnCloseHistory').addEventListener('click', closeHistory);
+            document.getElementById('btnNewSession').addEventListener('click', createNewSession);
         });
 
-        function showWelcome() {
-            document.getElementById('welcomeBox').style.display = 'block';
-            document.getElementById('noSessionMsg').style.display = 'none';
-            document.getElementById('chatMessages').innerHTML = '';
-            document.getElementById('chatMessages').appendChild(document.getElementById('welcomeBox'));
-            document.getElementById('chatTitle').textContent = '智能物流助手';
-            currentSessionId = null;
-        }
-
         function toggleHistory() {
-            const modal = document.getElementById('historyModal');
-            if (modal.classList.contains('show')) {
-                closeHistory();
-            } else {
+            const sidebar = document.getElementById('historySidebar');
+            const overlay = document.getElementById('historyOverlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('visible');
+            if (sidebar.classList.contains('open')) {
                 loadSessionList();
-                modal.classList.add('show');
             }
         }
 
         function closeHistory() {
-            document.getElementById('historyModal').classList.remove('show');
+            document.getElementById('historySidebar').classList.remove('open');
+            document.getElementById('historyOverlay').classList.remove('visible');
         }
 
         function createNewSession() {
@@ -421,14 +317,14 @@
             .then(r => r.json())
             .then(data => {
                 const list = document.getElementById('sessionList');
-                if (!data.success || data.data.sessions.length === 0) {
-                    list.innerHTML = '<div class="empty-history">暂无历史记录<br><small>点击上方 + 创建新对话</small></div>';
+                if (!data.success || !data.data.sessions || data.data.sessions.length === 0) {
+                    list.innerHTML = '<div class="empty-sessions">暂无对话历史<br><small>发送消息开始新对话</small></div>';
                     return;
                 }
                 list.innerHTML = '';
                 data.data.sessions.forEach(session => {
                     const div = document.createElement('div');
-                    div.className = 'session-item' + (session.session_id === currentSessionId ? ' active' : '');
+                    div.className = 'session-list-item' + (session.session_id === currentSessionId ? ' active' : '');
                     div.innerHTML = '<div class="session-item-title">' + escapeHtml(session.title || '新对话') + '</div><div class="session-item-meta">' + session.message_count + ' 条消息</div>';
                     div.onclick = () => loadSession(session.session_id);
                     list.appendChild(div);
@@ -442,8 +338,6 @@
 
             document.getElementById('welcomeBox').style.display = 'none';
             document.getElementById('noSessionMsg').style.display = 'none';
-
-            // 清空消息区域
             document.getElementById('chatMessages').innerHTML = '';
             document.getElementById('chatTitle').textContent = '加载中...';
 
@@ -451,8 +345,7 @@
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
-                    document.getElementById('chatMessages').innerHTML = '';
-                    if (data.data.messages.length === 0) {
+                    if (!data.data.messages || data.data.messages.length === 0) {
                         document.getElementById('noSessionMsg').style.display = 'block';
                         document.getElementById('chatTitle').textContent = '新对话';
                     } else {
@@ -469,6 +362,13 @@
             .catch(() => {
                 showWelcome();
             });
+        }
+
+        function showWelcome() {
+            document.getElementById('welcomeBox').style.display = 'block';
+            document.getElementById('noSessionMsg').style.display = 'none';
+            document.getElementById('chatTitle').textContent = '智能物流助手';
+            currentSessionId = null;
         }
 
         function addMessage(role, content, actionType, diffContent) {
@@ -503,7 +403,6 @@
             if (!message) return;
 
             if (!currentSessionId) {
-                // 自动创建新会话
                 fetch('/api/chat/sessions', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -512,9 +411,8 @@
                 .then(r => r.json())
                 .then(data => {
                     if (data.success) {
-                        loadSession(data.data.session_id).then(() => {
-                            setTimeout(() => sendMessageReal(message), 100);
-                        });
+                        loadSession(data.data.session_id);
+                        setTimeout(() => sendMessageReal(message), 200);
                     }
                 });
                 input.value = '';
@@ -650,6 +548,9 @@
             div.textContent = text;
             return div.innerHTML;
         }
+
+        // 添加悬浮按钮来打开历史记录
+        document.write('<div class="chat-history-container" style="position:fixed;top:20px;left:20px;z-index:1001;padding:10px 16px;background:rgba(15,20,40,0.85);backdrop-filter:blur(15px);border-radius:8px;border:1px solid rgba(80,110,180,0.3);box-shadow:0 4px 20px rgba(0,0,0,0.3);"><button onclick="toggleHistory()" style="padding:8px 16px;background:rgba(60,140,180,0.85);color:white;cursor:pointer;font-size:14px;font-weight:500;border:none;border-radius:6px;">&#128172; 对话历史</button></div>');
     </script>
 </body>
 </html>
