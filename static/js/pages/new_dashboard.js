@@ -172,7 +172,10 @@ const initMetrics = () => {
 
             totalCardGroups = Math.ceil(metrics.length / 4);
             if (totalCardGroups < 1) totalCardGroups = 1;
-            currentCardIndex = 0;
+            // 只在首次加载时重置索引，避免覆盖轮播状态
+            if (!metricCardsContainer.hasChildNodes()) {
+                currentCardIndex = 0;
+            }
         }
 
         document.getElementById('metricsRefresh').textContent = '最后更新：' + new Date().toLocaleString();
