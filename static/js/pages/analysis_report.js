@@ -34,7 +34,7 @@ $(function(){
         const $btn = $(this);
         const $content = $('#analysisContent');
         $btn.prop('disabled', true);
-        $content.html('<em style="color:#666;">正在分析数据...</em>');
+        $content.html('<em style="color:#0ea5e9;">正在分析数据...</em>');
 
         try {
             const response = await fetch('/analysis_stream');
@@ -55,7 +55,7 @@ $(function(){
                         try {
                             const data = JSON.parse(line.slice(6));
                             if (data.type === 'thinking') {
-                                $content.html('<em style="color:#666;">分析中：' + data.content + '</em>');
+                                $content.html('<em style="color:#0ea5e9;">分析中：' + data.content + '</em>');
                             } else if (data.type === 'text') {
                                 isThinking = false;
                                 fullContent += data.content;
@@ -83,7 +83,7 @@ $(function(){
         const $btn = $(this);
         const $content = $('#dailyReportContent');
         $btn.prop('disabled', true);
-        $content.html('<em style="color:#666;">正在生成日报...</em>');
+        $content.html('<em style="color:#0ea5e9;">正在生成日报...</em>');
 
         try {
             const response = await fetch('/report_stream');
@@ -105,9 +105,9 @@ $(function(){
                             const data = JSON.parse(line.slice(6));
                             if (data.type === 'thinking') {
                                 if (isThinking) {
-                                    $content.html('<em style="color:#666;">生成中：' + data.content + '</em>');
+                                    $content.html('<em style="color:#0ea5e9;">生成中：' + data.content + '</em>');
                                 } else {
-                                    $content.html(fullContent + '\n\n<em style="color:#666;">继续生成...</em>');
+                                    $content.html(fullContent + '\n\n<em style="color:#0ea5e9;">继续生成...</em>');
                                 }
                             } else if (data.type === 'text') {
                                 isThinking = false;

@@ -47,9 +47,9 @@ $(function(){
                             const data = JSON.parse(line.slice(6));
                             if (data.type === 'thinking') {
                                 if (isThinking) {
-                                    $content.html('<em style="color:#666;">思考中：' + data.content + '</em>');
+                                    $content.html('<em style="color:#0ea5e9;">思考中：' + data.content + '</em>');
                                 } else {
-                                    $content.html(fullContent + '\n\n<em style="color:#666;">继续生成...</em>');
+                                    $content.html(fullContent + '\n\n<em style="color:#0ea5e9;">继续生成...</em>');
                                 }
                             } else if (data.type === 'text') {
                                 isThinking = false;

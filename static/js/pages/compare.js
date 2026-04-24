@@ -352,7 +352,7 @@ $(function(){
                                 var data = JSON.parse(line.slice(6));
                                 if (data.type === 'thinking') {
                                     isThinking = true;
-                                    analysisDiv.html('<em style="color:#666;">分析中：' + data.content + '</em>');
+                                    analysisDiv.html('<em style="color:#0ea5e9;">分析中：' + data.content + '</em>');
                                 } else if (data.type === 'text') {
                                     isThinking = false;
                                     fullContent += data.content;
