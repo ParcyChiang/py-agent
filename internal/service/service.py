@@ -13,7 +13,6 @@ from internal.service.new_dashboard.http import NewDashboardHttp
 from internal.service.compare.http import CompareHttp
 from internal.service.logs.http import LogsHttp
 from internal.service.users.http import UsersHttp
-from internal.service.admin_log.http import AdminLogHttp
 from internal.service.index.http import IndexHttp
 from internal.service.chat_history.http import ChatHistoryHttp
 from internal.service.chat_agent.http import ChatAgentHttp
@@ -35,7 +34,6 @@ def register_routes(app):
     compare_http = CompareHttp()
     logs_http = LogsHttp()
     users_http = UsersHttp()
-    admin_log_http = AdminLogHttp()
     index_http = IndexHttp()
     chat_history_http = ChatHistoryHttp()
     chat_agent_http = ChatAgentHttp()
@@ -52,7 +50,6 @@ def register_routes(app):
     compare_http.routes(app)
     logs_http.routes(app)
     users_http.routes(app)
-    admin_log_http.routes(app)
     index_http.routes(app)
     chat_history_http.routes(app)
     chat_agent_http.routes(app)

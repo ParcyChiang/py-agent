@@ -1,4 +1,7 @@
 ## py-agent搭建Log
+## v1.18
+1. refactor: 曲面图生成代码重构
+
 ### v1.17
 1. feat: AI生成内容后端自动入库，移除前端 saveChat 调用
 2. feat: 日报、分析报告、代码生成、物流对比生成完成后在后端直接保存到 chat_history

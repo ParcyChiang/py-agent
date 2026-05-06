@@ -3,18 +3,29 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from matplotlib import cm
+from matplotlib.patches import Patch
 import base64
 import io
-from mpl_toolkits.mplot3d import Axes3D
+import random
 from collections import defaultdict
 
 from internal.pkg.constants import STATUS_CN_MAP
 from internal.pkg.utils import configure_matplotlib
 from internal.pkg.charts.utils import _parse_date_str
 
+# 状态对应的 colormap，视觉区分度高
+_STATUS_CMAPS = [
+    cm.Reds, cm.Blues, cm.Greens, cm.Oranges, cm.Purples, cm.YlOrBr,
+]
+_STATUS_COLORS = ['#d32f2f', '#1976d2', '#388e3c', '#f57c00', '#7b1fa2', '#795548']
+
 
 def create_surface_plot(shipments):
-    """生成三维曲面图数据：城市 x 时间 x 状态分布
+    """生成三维曲面图：城市 x 时间 x 状态分布
+
+    对数据中实际存在的状态分别绘制曲面，使用 colormap 渐变着色，
+    通过高斯平滑使曲面更连续美观。
 
     参数:
         shipments: 物流数据字典列表
@@ -24,37 +35,34 @@ def create_surface_plot(shipments):
     """
     configure_matplotlib()
 
-    # 调试信息
-    print(f"曲面图原始数据: {len(shipments)} 条")
-    # 数据采样：超过100条时采样
-    max_items = 100
+    # 数据采样：超过200条时采样（固定种子保证可复现）
+    max_items = 200
     if len(shipments) > max_items:
-        import random
-        shipments = random.sample(shipments, max_items)
-        print(f"曲面图采样后数据: {len(shipments)} 条")
+        rng = random.Random(42)
+        shipments = rng.sample(shipments, max_items)
 
-    # 准备曲面图数据：时间 x 城市 x 状态
-    time_city_status_data = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+    # 聚合数据：日期 -> 城市 -> 状态 -> 数量
+    time_city_status = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
 
     for shipment in shipments:
-        # 转换状态为中文
-        status = shipment.get('status', '未知状态')
+        status = shipment.get('status', '')
         status_cn = STATUS_CN_MAP.get(status, status)
+        if not status_cn or status_cn == '未知状态':
+            continue
 
-        # 处理曲面图数据
         delivery_date = _parse_date_str(shipment.get('actual_delivery'))
         if delivery_date is None:
             delivery_date = _parse_date_str(shipment.get('created_at'))
+        if delivery_date is None:
+            continue
 
-        if delivery_date is not None:
-            city = shipment.get('origin_city', '未知城市')
-            if city and city != '未知城市' and status_cn and status_cn != '未知状态':
-                time_city_status_data[delivery_date][city][status_cn] += 1
+        city = shipment.get('origin_city', '')
+        if not city or city == '未知城市':
+            continue
 
-    # 调试信息
-    print(f"曲面图数据点数量: {sum(sum(sum(city_data.values()) for city_data in day_data.values()) for day_data in time_city_status_data.values())}")
+        time_city_status[delivery_date][city][status_cn] += 1
 
-    if not time_city_status_data:
+    if not time_city_status:
         return {
             'image_base64': None,
             'data_info': {
@@ -65,91 +73,115 @@ def create_surface_plot(shipments):
             }
         }
 
-    # 获取所有日期并排序
-    all_dates = sorted(time_city_status_data.keys())
-    if len(all_dates) > 7:
-        # 如果数据超过7天，取最近7天
-        last_7_days = all_dates[-7:]
-    else:
-        # 如果数据少于7天，使用所有可用日期
-        last_7_days = all_dates
+    # 取最近7天数据
+    all_dates = sorted(time_city_status.keys())
+    dates = all_dates[-7:]
 
-    # 定义所有可能的状态
-    all_possible_statuses = [
-        '已送达', '配送失败', '运输中', '派件中',
-        '待处理', '已揽件', '处理中', '已退回'
-    ]
+    # 只保留数据中实际出现的状态和城市（按数量排序取 top）
+    city_counts = defaultdict(int)
+    status_counts = defaultdict(int)
+    for day_data in time_city_status.values():
+        for city, statuses in day_data.items():
+            for status, count in statuses.items():
+                city_counts[city] += count
+                status_counts[status] += count
 
-    # 曲面图数据准备
-    all_cities = set()
-    all_statuses = set()
-    for day_data in time_city_status_data.values():
-        for city in day_data.keys():
-            all_cities.add(city)
-            for status in day_data[city].keys():
-                all_statuses.add(status)
+    cities = [c for c, _ in sorted(city_counts.items(), key=lambda x: -x[1])][:8]
+    statuses = [s for s, _ in sorted(status_counts.items(), key=lambda x: -x[1])][:6]
 
-    # 合并所有可能的状态
-    for status in all_possible_statuses:
-        all_statuses.add(status)
+    if not cities or not statuses:
+        return {
+            'image_base64': None,
+            'data_info': {
+                'cities': [],
+                'time_labels': [],
+                'statuses': [],
+                'error': '数据维度不足，无法生成曲面图'
+            }
+        }
 
-    all_cities = sorted(list(all_cities))[:8]  # 限制前8个城市
-    all_statuses = sorted(list(all_statuses))  # 允许所有状态
+    # 构建网格
+    X = np.arange(len(cities))
+    Y = np.arange(len(dates))
+    X_mesh, Y_mesh = np.meshgrid(X, Y)
 
-    # 创建曲面图数据矩阵
-    X_surface = np.arange(len(all_cities))  # 城市索引
-    Y_surface = np.arange(len(last_7_days))  # 时间索引
-    X_surface, Y_surface = np.meshgrid(X_surface, Y_surface)
-
-    # 为每个状态创建Z值矩阵
+    # 为每个状态构建 Z 矩阵
     surface_data = {}
-    for status in all_statuses:
-        Z = np.zeros((len(last_7_days), len(all_cities)))
-        for i, day in enumerate(last_7_days):
-            for j, city in enumerate(all_cities):
-                Z[i, j] = time_city_status_data[day][city][status]
+    for status in statuses:
+        Z = np.zeros((len(dates), len(cities)))
+        for i, day in enumerate(dates):
+            for j, city in enumerate(cities):
+                Z[i, j] = time_city_status[day][city][status]
+        # 高斯平滑使曲面更连续（仅在数据点足够时）
+        if Z.shape[0] >= 3 and Z.shape[1] >= 3:
+            Z = _gaussian_smooth(Z, sigma=0.6)
         surface_data[status] = Z
 
-    # 生成三维曲面图
-    fig = plt.figure(figsize=(12, 8))
+    # 绘图
+    fig = plt.figure(figsize=(14, 9))
     ax = fig.add_subplot(111, projection='3d')
 
-    colors = ['red', 'blue', 'green', 'orange', 'purple', 'brown']
-
+    legend_patches = []
     for i, (status, Z) in enumerate(surface_data.items()):
-        if i < len(colors):
-            surf = ax.plot_surface(X_surface, Y_surface, Z, alpha=0.7, color=colors[i],
-                                 label=status, linewidth=0, antialiased=True)
+        cmap = _STATUS_CMAPS[i % len(_STATUS_CMAPS)]
+        # 归一化 Z 值用于 colormap 映射
+        z_max = Z.max()
+        facecolors = cmap(Z / z_max * 0.8 + 0.2) if z_max > 0 else cmap(np.zeros_like(Z))
+        ax.plot_surface(
+            X_mesh, Y_mesh, Z,
+            facecolors=facecolors,
+            alpha=0.75,
+            linewidth=0.3,
+            edgecolor='gray',
+            antialiased=True,
+            shade=True,
+        )
+        legend_patches.append(Patch(color=_STATUS_COLORS[i % len(_STATUS_COLORS)], label=status))
 
-    ax.set_xlabel('城市')
-    ax.set_ylabel('时间')
-    ax.set_zlabel('数量')
-    ax.set_title('三维曲面图 - 城市x时间x状态分布')
+    # 坐标轴
+    ax.set_xticks(range(len(cities)))
+    ax.set_xticklabels(cities, rotation=30, ha='right', fontsize=9)
+    ax.set_yticks(range(len(dates)))
+    ax.set_yticklabels([d.strftime('%m-%d') for d in dates], fontsize=9)
+    ax.set_xlabel('城市', fontsize=11, labelpad=10)
+    ax.set_ylabel('时间', fontsize=11, labelpad=10)
+    ax.set_zlabel('数量', fontsize=11, labelpad=8)
+    ax.set_title('三维曲面图 — 城市 × 时间 × 状态分布', fontsize=13, pad=20)
 
-    # 设置坐标轴标签
-    ax.set_xticks(range(len(all_cities)))
-    ax.set_xticklabels(all_cities, rotation=45)
-    ax.set_yticks(range(len(last_7_days)))
-    ax.set_yticklabels([d.strftime('%m-%d') for d in last_7_days])
+    # 图例（放在图外右上角）
+    ax.legend(handles=legend_patches, loc='upper left', bbox_to_anchor=(1.02, 1),
+              fontsize=9, framealpha=0.9)
 
-    # 移除 tight_layout 避免警告
-    ax.set_xlabel('城市', fontsize=10)
-    ax.set_ylabel('时间', fontsize=10)
-    ax.set_zlabel('数量', fontsize=10)
+    # 视角调整
+    ax.view_init(elev=25, azim=-50)
 
-    # 转换为 base64 字符串
+    # 输出
     buffer = io.BytesIO()
-    plt.savefig(buffer, format='png', dpi=100)
+    fig.savefig(buffer, format='png', dpi=120, bbox_inches='tight')
     buffer.seek(0)
     image_base64 = base64.b64encode(buffer.getvalue()).decode()
-    plt.close()
+    plt.close(fig)
 
     return {
         'image_base64': image_base64,
         'data_info': {
-            'cities': all_cities,
-            'time_labels': [d.strftime('%m-%d') for d in last_7_days],
-            'statuses': all_statuses,
+            'cities': cities,
+            'time_labels': [d.strftime('%m-%d') for d in dates],
+            'statuses': list(statuses),
             'surface_data': {k: v.tolist() for k, v in surface_data.items()}
         }
     }
+
+
+def _gaussian_smooth(Z, sigma=1.0):
+    """简单高斯平滑，避免引入 scipy 依赖"""
+    kernel_size = 3
+    x = np.arange(kernel_size) - kernel_size // 2
+    kernel_1d = np.exp(-x ** 2 / (2 * sigma ** 2))
+    kernel_1d /= kernel_1d.sum()
+
+    # 先按行卷积，再按列卷积
+    smoothed = np.apply_along_axis(lambda row: np.convolve(row, kernel_1d, mode='same'), axis=1, arr=Z)
+    smoothed = np.apply_along_axis(lambda col: np.convolve(col, kernel_1d, mode='same'), axis=0, arr=smoothed)
+    # 保证非负
+    return np.maximum(smoothed, 0)
