@@ -77,6 +77,50 @@ class ChatAgentService:
             'error': response.error
         }, ai_msg_order
 
+    async def stream_message(self, user_id: int, username: str,
+                             session_id: str, message: str):
+        """流式发送消息并处理"""
+        # 获取上下文并保存用户消息
+        context = self.get_session_messages(session_id)
+        user_msg_order = len(context) * 2 + 1
+        self.chat_dao.add_message(
+            user_id, username, session_id,
+            user_msg_order, 'user', message
+        )
+
+        # 流式处理
+        ai_msg_order = user_msg_order + 1
+        full_content = []
+        need_confirm = False
+        action_plan = None
+        action_type = 'explain'
+
+        try:
+            async for chunk in self.agent.process_stream(message, context):
+                if chunk['type'] == 'thinking':
+                    yield chunk
+                elif chunk['type'] == 'text':
+                    full_content.append(chunk['content'])
+                    yield chunk
+                elif chunk['type'] == 'need_confirm':
+                    need_confirm = True
+                    action_plan = chunk.get('action_plan')
+                    action_type = 'mutation'
+                elif chunk['type'] == 'error':
+                    yield chunk
+
+            # 流结束后保存 AI 响应
+            final_content = ''.join(full_content)
+            self.chat_dao.add_message(
+                user_id, username, session_id,
+                ai_msg_order, 'assistant', final_content,
+                action_type=action_type,
+                action_result=json.dumps(action_plan) if action_plan else None
+            )
+
+        except Exception as e:
+            yield {'type': 'error', 'content': f'处理失败: {str(e)}'}
+
     async def confirm_action(self, user_id: int, username: str,
                             session_id: str, step: str, plan: Dict) -> Dict:
         """确认执行操作"""

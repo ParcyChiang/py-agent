@@ -39,6 +39,22 @@ class ExplainHandler(BaseHandler):
                 error=str(e)
             )
 
+    async def handle_stream(self, intent: Dict, context: List[Dict]):
+        """流式处理对话请求"""
+        user_message = intent.get('message', '')
+
+        try:
+            # 构建对话上下文
+            history = self._build_messages(context, user_message)
+            full_prompt = f"{self.SYSTEM_PROMPT}\n\n{history}"
+
+            # 流式调用 AI 生成回复
+            async for chunk in self.model.generate_response_stream(full_prompt, ""):
+                yield chunk
+
+        except Exception as e:
+            yield {'type': 'error', 'content': f'处理您的请求时出现错误: {str(e)}'}
+
     def _build_messages(self, context: List[Dict], current_message: str) -> str:
         """构建对话历史上下文"""
         history = ""

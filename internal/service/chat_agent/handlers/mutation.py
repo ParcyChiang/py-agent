@@ -99,6 +99,27 @@ class MutationHandler(BaseHandler):
             error='Delete not implemented'
         )
 
+    async def handle_stream(self, intent: Dict, context: List[Dict]):
+        """流式处理写操作请求"""
+        params = intent.get('params', {})
+        action = params.get('action')  # update/delete/insert
+
+        try:
+            if action == 'update':
+                # 流式返回更新计划
+                plan_response = await self._handle_update(intent, params.get('filters', {}), params.get('updates', {}))
+                # 分段 yield 计划文本
+                for i in range(0, len(plan_response.content), 50):
+                    yield {'type': 'text', 'content': plan_response.content[i:i+50]}
+                if plan_response.need_confirm:
+                    yield {'type': 'need_confirm', 'action_plan': plan_response.action_plan}
+            elif action == 'delete':
+                yield {'type': 'text', 'content': '删除操作暂未实现'}
+            else:
+                yield {'type': 'error', 'content': f'不支持的操作类型: {action}'}
+        except Exception as e:
+            yield {'type': 'error', 'content': f'操作失败: {str(e)}'}
+
     async def execute_update(self, plan: Dict) -> HandlerResponse:
         """执行更新 - Diff 确认后调用"""
         try:

@@ -36,6 +36,8 @@ class ChatAgentHttp:
                          view_func=login_required(self.get_history), methods=['GET'])
         app.add_url_rule('/api/chat/send', endpoint='chat_send',
                          view_func=login_required(self.send_message), methods=['POST'])
+        app.add_url_rule('/api/chat/stream', endpoint='chat_stream',
+                         view_func=login_required(self.stream_message), methods=['POST'])
         app.add_url_rule('/api/chat/confirm', endpoint='chat_confirm',
                          view_func=login_required(self.confirm_action), methods=['POST'])
 
@@ -110,6 +112,80 @@ class ChatAgentHttp:
         except Exception as e:
             logger.error(f"发送消息失败: {e}")
             return error(f"处理失败: {str(e)}")
+
+    def stream_message(self):
+        """SSE 流式发送消息"""
+        user_id = session.get('user_id')
+        username = session.get('username', '')
+        data = request.get_json()
+
+        session_id = data.get('session_id')
+        message = data.get('message', '').strip()
+
+        if not session_id:
+            return error('session_id 不能为空')
+        if not message:
+            return error('消息不能为空')
+
+        def generate():
+            yield f"data: {json.dumps({'type': 'start'})}\n\n"
+
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+            try:
+                async def stream_result():
+                    full_content = []
+                    need_confirm = False
+                    action_plan = None
+                    action_type = 'explain'
+
+                    async for item in self.service.stream_message(user_id, username, session_id, message):
+                        if item['type'] == 'thinking':
+                            yield f"data: {json.dumps({'type': 'thinking', 'content': item['content']})}\n\n"
+                        elif item['type'] == 'text':
+                            full_content.append(item['content'])
+                            yield f"data: {json.dumps({'type': 'text', 'content': item['content']})}\n\n"
+                        elif item['type'] == 'need_confirm':
+                            need_confirm = True
+                            action_plan = item.get('action_plan')
+                            action_type = 'mutation'
+                        elif item['type'] == 'error':
+                            yield f"data: {json.dumps({'type': 'error', 'content': item['content']})}\n\n"
+
+                    # 流结束后发送结束信号
+                    final_content = ''.join(full_content)
+                    end_data = {
+                        'type': 'end',
+                        'content': final_content,
+                        'need_confirm': need_confirm,
+                        'action_plan': action_plan,
+                        'action_type': action_type
+                    }
+                    yield f"data: {json.dumps(end_data)}\n\n"
+
+                gen = stream_result()
+                while True:
+                    try:
+                        chunk = loop.run_until_complete(gen.__anext__())
+                        yield chunk
+                    except StopAsyncIteration:
+                        break
+            except Exception as e:
+                logger.error(f"SSE 流式消息处理异常: {e}")
+                yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
+            finally:
+                loop.close()
+
+        return Response(
+            generate(),
+            mimetype='text/event-stream',
+            headers={
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
+                'X-Accel-Buffering': 'no'
+            }
+        )
 
     def confirm_action(self):
         """确认操作"""

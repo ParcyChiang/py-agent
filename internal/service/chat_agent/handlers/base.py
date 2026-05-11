@@ -29,6 +29,14 @@ class BaseHandler(ABC):
         """处理请求"""
         raise NotImplementedError
 
+    async def handle_stream(self, intent: Dict, context: List[Dict]):
+        """流式处理请求"""
+        # 默认实现：调用 handle 并 yield 完整内容
+        response = await self.handle(intent, context)
+        yield {'type': 'text', 'content': response.content}
+        if response.need_confirm:
+            yield {'type': 'need_confirm', 'action_plan': response.action_plan}
+
     def parse_result(self, result_text: str, key: str, default=None):
         """简单解析 JSON 结果"""
         try:

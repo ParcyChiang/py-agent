@@ -97,3 +97,29 @@ class OptimizeHandler(BaseHandler):
                 suggestions += chunk['content']
 
         return suggestions if suggestions else "分析完成，未生成具体建议"
+
+    async def handle_stream(self, intent: Dict, context: List[Dict]):
+        """流式处理优化请求"""
+        params = intent.get('params', {})
+        optimize_type = params.get('type', 'route')  # route/cost/time
+
+        try:
+            # 获取全量数据用于分析
+            shipments, _ = self.dao.get_all_shipments(limit=5000)
+
+            if not shipments:
+                yield {'type': 'text', 'content': '没有足够的物流数据进行分析'}
+                return
+
+            # 构建分析上下文
+            analysis_context = self._build_analysis_context(shipments, optimize_type)
+
+            # 调用 AI 生成优化建议（流式）
+            prompt = f"优化类型：{optimize_type}\n\n数据概览：\n{analysis_context}"
+            full_prompt = f"{self.SYSTEM_PROMPT}\n\n{prompt}"
+
+            async for chunk in self.model.generate_response_stream(full_prompt, ""):
+                yield chunk
+
+        except Exception as e:
+            yield {'type': 'error', 'content': f'优化分析失败: {str(e)}'}

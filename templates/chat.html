@@ -213,6 +213,55 @@
             text-align: center;
             color: rgba(255, 255, 255, 0.5);
         }
+        /* Markdown 样式 */
+        .message.assistant .message-content .markdown-body {
+            color: rgba(255, 255, 255, 0.95);
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .message.assistant .message-content .markdown-body h1 { font-size: 18px; margin: 12px 0 8px; }
+        .message.assistant .message-content .markdown-body h2 { font-size: 16px; margin: 10px 0 6px; }
+        .message.assistant .message-content .markdown-body h3 { font-size: 15px; margin: 8px 0 4px; }
+        .message.assistant .message-content .markdown-body p { margin: 8px 0; }
+        .message.assistant .message-content .markdown-body code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+        .message.assistant .message-content .markdown-body pre {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 12px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 8px 0;
+        }
+        .message.assistant .message-content .markdown-body pre code {
+            background: transparent;
+            padding: 0;
+        }
+        .message.assistant .message-content .markdown-body ul, .message.assistant .message-content .markdown-body ol {
+            margin: 8px 0;
+            padding-left: 20px;
+        }
+        .message.assistant .message-content .markdown-body li { margin: 4px 0; }
+        .message.assistant .message-content .markdown-body table {
+            border-collapse: collapse;
+            margin: 8px 0;
+            width: 100%;
+        }
+        .message.assistant .message-content .markdown-body th, .message.assistant .message-content .markdown-body td {
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 6px 10px;
+            text-align: left;
+        }
+        .message.assistant .message-content .markdown-body th { background: rgba(0,0,0,0.2); }
+        .thinking-indicator {
+            color: #0ea5e9;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -305,6 +354,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="{{ url_for('static', filename='js/user_header.js') }}"></script>
     <script src="{{ url_for('static', filename='js/chat_history.js') }}"></script>
     <script>
@@ -436,7 +486,7 @@
 
             // 如果当前不是 chat_agent 会话，创建新会话
             if (!currentSessionId || currentSessionId.startsWith('single_')) {
-                fetch('/api/chat_history/sessions', {
+                fetch('/api/chat/sessions', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({title: message.substring(0, 30)})
@@ -444,7 +494,7 @@
                 .then(r => r.json())
                 .then(data => {
                     if (data.success) {
-                        const newSessionId = data.data.session_id;
+                        const newSessionId = data.session_id;
                         currentSessionId = newSessionId;
                         sendMessageReal(newSessionId, message);
                     }
@@ -461,29 +511,92 @@
             addMessage('user', message);
             scrollToBottom();
 
-            fetch('/api/chat/send', {
+            // 创建 AI 消息占位符
+            const aiMsgDiv = document.createElement('div');
+            aiMsgDiv.className = 'message assistant';
+            aiMsgDiv.innerHTML = '<div class="message-content"><span class="ai-text"></span></div>';
+            document.getElementById('chatMessages').appendChild(aiMsgDiv);
+            const aiTextSpan = aiMsgDiv.querySelector('.ai-text');
+
+            fetch('/api/chat/stream', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({session_id: sessionId, message: message})
             })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    const result = data.data;
-                    addMessage('assistant', result.content, result.type);
-
-                    if (result.need_confirm && result.action_plan) {
-                        pendingPlan = result.action_plan;
-                        showIntentConfirm(result.action_plan);
-                    }
+            .then(response => {
+                if (!response.ok) {
+                    aiTextSpan.innerHTML = '<span style="color:red;">请求失败: ' + response.status + '</span>';
                     scrollToBottom();
-                } else {
-                    addMessage('assistant', '抱歉，处理失败: ' + data.message);
-                    scrollToBottom();
+                    return;
                 }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullContent = '';
+                let needConfirm = false;
+                let actionPlan = null;
+
+                function processChunk(chunk) {
+                    const lines = chunk.split('\n');
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+
+                                if (data.type === 'thinking') {
+                                    aiTextSpan.innerHTML = '<span class="thinking-indicator">思考中：' + escapeHtml(data.content) + '</span>';
+                                } else if (data.type === 'text') {
+                                    fullContent += data.content;
+                                    // 实时渲染 Markdown
+                                    const markdownContent = marked.parse(fullContent);
+                                    aiTextSpan.innerHTML = '<div class="markdown-body">' + markdownContent + '</div>';
+                                } else if (data.type === 'end') {
+                                    needConfirm = data.need_confirm;
+                                    actionPlan = data.action_plan;
+
+                                    // 流结束后替换为最终 Markdown 渲染
+                                    const finalMarkdown = marked.parse(fullContent);
+                                    aiMsgDiv.querySelector('.message-content').innerHTML =
+                                        '<div class="markdown-body">' + finalMarkdown + '</div>';
+
+                                    // 如果需要确认，弹出确认框
+                                    if (needConfirm && actionPlan) {
+                                        pendingPlan = actionPlan;
+                                        showIntentConfirm(actionPlan);
+                                    }
+                                } else if (data.type === 'error') {
+                                    aiTextSpan.innerHTML = '<span style="color:red;">错误：' + escapeHtml(data.content) + '</span>';
+                                }
+                            } catch (e) {
+                                // 忽略解析错误
+                            }
+                        }
+                    }
+                }
+
+                function read() {
+                    reader.read().then(({ done, value }) => {
+                        if (done) {
+                            // 流结束时，如果没有任何内容，显示提示
+                            if (!fullContent) {
+                                aiTextSpan.innerHTML = '<span style="color:gray;">未收到响应</span>';
+                            }
+                            scrollToBottom();
+                            return;
+                        }
+
+                        const chunk = decoder.decode(value);
+                        processChunk(chunk);
+                        scrollToBottom();
+
+                        read();
+                    });
+                }
+
+                read();
             })
             .catch(err => {
-                addMessage('assistant', '网络错误，请稍后重试');
+                aiTextSpan.innerHTML = '<span style="color:red;">网络错误，请稍后重试: ' + escapeHtml(err.message) + '</span>';
                 scrollToBottom();
             });
         }

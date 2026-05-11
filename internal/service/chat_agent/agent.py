@@ -123,3 +123,69 @@ class Agent:
             return json.loads(result)
         except Exception as e:
             return {}  # 解析失败返回空参数
+
+    async def process_stream(self, message: str, context: List[Dict]):
+        """流式处理用户消息"""
+        # 1. 流式意图识别
+        intent_type = ""
+        async for chunk in self._detect_intent_stream(message):
+            if chunk['type'] == 'text':
+                intent_type += chunk['content']
+            yield chunk
+
+        intent_type = intent_type.strip().lower()
+        if intent_type not in ('query', 'mutation', 'optimize', 'explain'):
+            intent_type = 'explain'
+
+        # 2. 流式参数提取
+        params_text = ""
+        async for chunk in self._extract_params_stream(message):
+            if chunk['type'] == 'text':
+                params_text += chunk['content']
+            yield chunk
+
+        try:
+            params_text = re.sub(r'```json\s*', '', params_text)
+            params_text = re.sub(r'```\s*', '', params_text)
+            params = json.loads(params_text.strip())
+        except:
+            params = {}
+
+        # 3. 构建意图对象
+        intent = {
+            'type': intent_type,
+            'message': message,
+            'params': params
+        }
+
+        # 4. 路由到 Handler 进行流式处理
+        handler = self.handlers.get(intent_type)
+        if handler and hasattr(handler, 'handle_stream'):
+            async for chunk in handler.handle_stream(intent, context):
+                yield chunk
+        elif handler:
+            # Handler 不支持流式，降级为普通处理
+            response = await handler.handle(intent, context)
+            yield {'type': 'text', 'content': response.content}
+            if response.need_confirm:
+                yield {'type': 'need_confirm', 'action_plan': response.action_plan}
+        else:
+            yield {'type': 'error', 'content': '无法处理此请求'}
+
+    async def _detect_intent_stream(self, message: str):
+        """流式识别用户意图"""
+        prompt = self.INTENT_PROMPT.format(message=message)
+        try:
+            async for chunk in self.model.generate_response_stream(prompt, ""):
+                yield chunk
+        except Exception as e:
+            yield {'type': 'text', 'content': 'explain'}
+
+    async def _extract_params_stream(self, message: str):
+        """流式提取参数"""
+        prompt = self.PARAM_EXTRACT_PROMPT.format(message=message)
+        try:
+            async for chunk in self.model.generate_response_stream(prompt, ""):
+                yield chunk
+        except Exception as e:
+            yield {'type': 'text', 'content': '{}'}
