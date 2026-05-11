@@ -26,9 +26,9 @@
    ```bash
    pip install -r requirements.txt
    ```
-4.  下载模型(重要!!!!!!)
+4.  环境变量.env配置key
     ```bash
-    ollama pull gpt-oss:20b
+    MINIMAX_API_KEY="YOUR_MINIMAX_API_KEY"
     ```
 5. 创建并启动 mysql, 账号 root, 密码 rootroot
    - ###### mac(如果使用 Homebrew 安装)
