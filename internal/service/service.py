@@ -11,6 +11,7 @@ from internal.service.analysis_report.http import AnalysisReportHttp
 from internal.service.code_generator.http import CodeGeneratorHttp
 from internal.service.new_dashboard.http import NewDashboardHttp
 from internal.service.compare.http import CompareHttp
+from internal.service.map.http import MapHttp
 from internal.service.logs.http import LogsHttp
 from internal.service.users.http import UsersHttp
 from internal.service.index.http import IndexHttp
@@ -32,6 +33,7 @@ def register_routes(app):
     code_gen_http = CodeGeneratorHttp()
     dashboard_http = NewDashboardHttp()
     compare_http = CompareHttp()
+    map_http = MapHttp()
     logs_http = LogsHttp()
     users_http = UsersHttp()
     index_http = IndexHttp()
@@ -48,6 +50,7 @@ def register_routes(app):
     code_gen_http.routes(app)
     dashboard_http.routes(app)
     compare_http.routes(app)
+    map_http.routes(app)
     logs_http.routes(app)
     users_http.routes(app)
     index_http.routes(app)

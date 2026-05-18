@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>物流智能分析 - 地图中心</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chat_history.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        #container {
+            width: 100%;
+            height: calc(100vh - 200px);
+            min-height: 500px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        .map-toolbar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .map-toolbar input {
+            padding: 10px 16px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            flex: 1;
+            min-width: 200px;
+        }
+        .map-toolbar button {
+            padding: 10px 20px;
+            background: #4F46E5;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        .map-toolbar button:hover {
+            background: #4338CA;
+        }
+        .info-window {
+            padding: 8px;
+        }
+        .info-window h4 {
+            margin: 0 0 8px 0;
+            color: #333;
+        }
+        .info-window p {
+            margin: 4px 0;
+            font-size: 13px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <script src="{{ url_for('static', filename='js/liquid-glass.js') }}"></script>
+    <div class="user-header">
+        <span class="user-info">
+            <span id="currentUser"></span>
+        </span>
+        <a class="btn-logout" href="/logout">退出</a>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1>地图中心</h1>
+            <p>物流轨迹与网点可视化</p>
+        </header>
+
+        <nav class="nav">
+            <div class="nav-links">
+                <a href="/">首页</a>
+                <a class="secondary" href="/page/upload">物流数据</a>
+                <a class="secondary" href="/page/analyze">运营分析</a>
+                <a class="secondary" href="/page/report">日报中心</a>
+                <a class="secondary" href="/page/analysis_report">运营报告</a>
+                <a class="secondary" href="/page/new_dashboard">实时监控</a>
+                <a class="secondary" href="/page/map">地图中心</a>
+                <a class="secondary" href="/page/code_generator">代码生成器</a>
+                <a class="secondary" href="/page/compare">物流对比</a>
+            </div>
+        </nav>
+
+        <section class="hero">
+            <div class="map-toolbar">
+                <input type="text" id="addressInput" placeholder="输入地址搜索..." />
+                <button onclick="searchAddress()">搜索</button>
+                <button onclick="locateUser()">定位</button>
+                <button onclick="clearMarkers()">清除标记</button>
+            </div>
+            <div id="container"></div>
+        </section>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/user_header.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chat_history.js') }}"></script>
+    <script>
+        window.chatHistoryManager = new ChatHistoryManager({ page: 'map' });
+    </script>
+
+    <!-- 高德地图 API -->
+    <script type="text/javascript" src="https://webapi.amap.com/maps?v=2.0&key={{ amap_api_key }}"></script>
+    <script src="https://webapi.amap.com/ui/1.1/main.js"></script>
+    <script>
+        var GEO_KEY = '{{ amap_geo_key }}';
+    </script>
+
+    <script>
+        // 初始化地图
+        let map = new AMap.Map('container', {
+            zoom: 11,
+            center: [120.155, 30.274], // 杭州
+            viewMode: '2D'
+        });
+
+        let markers = [];
+        let lines = [];
+
+        // 状态颜色映射
+        const statusColors = {
+            'delivered': '#52c41a',
+            'in_transit': '#1890ff',
+            'out_for_delivery': '#faad14',
+            'failed_delivery': '#f5222d',
+            'picked_up': '#722ed1',
+            'processing': '#13c2c2',
+            'pending': '#722ed1',
+            'returned': '#eb733f'
+        };
+
+        // 初始化地理编码器
+        function initGeocoder() {
+            console.log('Geocoder initialized');
+            loadShipmentData();
+        }
+
+        // 使用高德 REST API 进行地理编码
+        function geoLocation(city) {
+            return new Promise(function(resolve, reject) {
+                var timeout = setTimeout(function() {
+                    reject('Timeout for ' + city);
+                }, 5000);
+
+                var xhr = new XMLHttpRequest();
+                var url = 'https://restapi.amap.com/v3/geocode/geo?address=' + encodeURIComponent(city) + '&key=' + GEO_KEY;
+                xhr.open('GET', url, true);
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === 4) {
+                        clearTimeout(timeout);
+                        if (xhr.status === 200) {
+                            var response = JSON.parse(xhr.responseText);
+                            if (response.status === '1' && response.geocodes && response.geocodes.length > 0) {
+                                var location = response.geocodes[0].location.split(',');
+                                resolve(new AMap.LngLat(parseFloat(location[0]), parseFloat(location[1])));
+                            } else {
+                                reject('Geocoding failed for ' + city + ': ' + (response.info || 'no result'));
+                            }
+                        } else {
+                            reject('HTTP error for ' + city + ': ' + xhr.status);
+                        }
+                    }
+                };
+                xhr.onerror = function() {
+                    clearTimeout(timeout);
+                    reject('Network error for ' + city);
+                };
+                xhr.send();
+            });
+        }
+
+        // 加载物流数据
+        function loadShipmentData() {
+            fetch('/api/map/shipments')
+                .then(res => res.json())
+                .then(res => {
+                    console.log('API返回:', res);
+                    // 兼容不同的响应格式
+                    let data = res.data && res.data.data ? res.data.data : (res.data || []);
+                    if (Array.isArray(data)) {
+                        renderShipments(data);
+                    } else {
+                        console.error('数据格式错误:', data);
+                    }
+                })
+                .catch(err => console.error('加载失败:', err));
+        }
+
+        // 渲染物流数据
+        function renderShipments(shipments) {
+            console.log('准备渲染:', shipments.length, '条物流');
+            if (!shipments || shipments.length === 0) {
+                console.log('没有物流数据');
+                return;
+            }
+
+            const cityCache = new Map(); // 城市坐标缓存
+            const uniqueCities = []; // 去重后的城市列表
+
+            // 收集所有唯一城市
+            shipments.forEach(shipment => {
+                const originCity = shipment.origin_city || shipment.origin;
+                const destCity = shipment.destination_city || shipment.destination;
+                if (!cityCache.has(originCity)) {
+                    cityCache.set(originCity, null);
+                    uniqueCities.push({ city: originCity, type: 'origin' });
+                }
+                if (!cityCache.has(destCity)) {
+                    cityCache.set(destCity, null);
+                    uniqueCities.push({ city: destCity, type: 'dest' });
+                }
+            });
+
+            // 批量地理编码（控制频率，避免超限）
+            let geoIndex = 0;
+            console.log('开始地理编码, 共', uniqueCities.length, '个城市');
+
+            function geoNext() {
+                if (geoIndex >= uniqueCities.length) {
+                    console.log('地理编码完成, cityCache:', cityCache);
+                    renderRoutes(shipments, cityCache);
+                    return;
+                }
+                const item = uniqueCities[geoIndex++];
+                console.log('正在编码:', item.city, '(' + geoIndex + '/' + uniqueCities.length + ')');
+
+                geoLocation(item.city)
+                    .then(function(location) {
+                        console.log('编码成功:', item.city, location);
+                        cityCache.set(item.city, location);
+                    })
+                    .catch(function(err) {
+                        console.log('编码失败:', item.city, err);
+                    })
+                    .finally(function() {
+                        setTimeout(geoNext, 300);
+                    });
+            }
+            geoNext();
+        }
+
+        // 渲染物流路线
+        function renderRoutes(shipments, cityCache) {
+            console.log('开始渲染路线, 缓存城市数:', cityCache.size);
+            let rendered = 0;
+            shipments.forEach(shipment => {
+                const originCity = shipment.origin_city || shipment.origin;
+                const destCity = shipment.destination_city || shipment.destination;
+                const originPos = cityCache.get(originCity);
+                const destPos = cityCache.get(destCity);
+
+                if (originPos && destPos) {
+                    const color = statusColors[shipment.status] || '#1890ff';
+                    addMarker(originPos, originCity, shipment, '起点', color);
+                    addMarker(destPos, destCity, shipment, '终点', color);
+                    drawLine(originPos, destPos, color);
+                    rendered++;
+                } else {
+                    console.log('缺少坐标:', originCity, originPos, destCity, destPos);
+                }
+            });
+            console.log('渲染了', rendered, '条路线');
+            map.setFitView();
+        }
+
+        // 添加标记
+        function addMarker(position, title, shipment, type, color) {
+            const marker = new AMap.Marker({
+                position: position,
+                title: title,
+                icon: new AMap.Icon({
+                    size: new AMap.Size(32, 32),
+                    image: '//a.amap.com/jsapi_demos/static/demo-center/icons/poi-marker-default.png',
+                    imageSize: new AMap.Size(32, 32)
+                }),
+                extData: { title, shipment, type }
+            });
+
+            marker.on('click', function() {
+                const infoWindow = new AMap.InfoWindow({
+                    content: `
+                        <div class="info-window">
+                            <h4>${shipment.courier_company || '物流'} - ${type}</h4>
+                            <p><strong>单号：</strong>${shipment.id}</p>
+                            <p><strong>${type}：</strong>${title}</p>
+                            <p><strong>目的地：</strong>${shipment.destination_city || shipment.destination}</p>
+                            <p><strong>状态：</strong>${shipment.status}</p>
+                        </div>
+                    `,
+                    offset: new AMap.Pixel(0, -30)
+                });
+                infoWindow.open(map, position);
+            });
+
+            map.add(marker);
+            markers.push(marker);
+        }
+
+        // 绘制连线
+        function drawLine(origin, dest, color) {
+            const line = new AMap.Polyline({
+                path: [origin, dest],
+                strokeColor: color,
+                strokeOpacity: 0.6,
+                strokeWeight: 2,
+                strokeStyle: 'solid'
+            });
+            map.add(line);
+            lines.push(line);
+        }
+
+        // 搜索地址
+        function searchAddress() {
+            const keyword = document.getElementById('addressInput').value;
+            if (!keyword || !geocoder) return;
+
+            geocoder.getLocation(keyword, function(status, result) {
+                if (status === 'complete' && result.geocodes.length) {
+                    const location = result.geocodes[0].location;
+                    map.setCenter(location);
+                    map.setZoom(15);
+
+                    const marker = new AMap.Marker({
+                        position: location,
+                        title: keyword
+                    });
+                    map.add(marker);
+                    markers.push(marker);
+                } else {
+                    alert('未找到该地址');
+                }
+            });
+        }
+
+        // 定位用户
+        function locateUser() {
+            map.plugin('AMap.Geolocation', function() {
+                const geolocation = new AMap.Geolocation({
+                    enableHighAccuracy: true,
+                    timeout: 10000
+                });
+
+                geolocation.getCurrentPosition(function(status, result) {
+                    if (status === 'complete') {
+                        map.setCenter(result.position);
+                        map.setZoom(15);
+                    } else {
+                        alert('定位失败');
+                    }
+                });
+            });
+        }
+
+        // 清除所有标记
+        function clearMarkers() {
+            map.remove(markers);
+            map.remove(lines);
+            markers = [];
+            lines = [];
+        }
+
+        // 输入框回车搜索
+        document.getElementById('addressInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchAddress();
+            }
+        });
+
+        // 页面加载完成后初始化
+        initGeocoder();
+    </script>
+</body>
+</html>
