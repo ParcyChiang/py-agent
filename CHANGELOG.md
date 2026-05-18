@@ -1,4 +1,12 @@
 ## py-agent搭建Log
+## v2.0
+1. feat: 新增地图中心页面 (/page/map)，集成高德地图展示物流轨迹
+2. feat: 物流数据支持按城市筛选，仅显示起点终点在该城市的物流
+3. feat: 物流标记按状态显示不同颜色（已送达/运输中/异常等）
+4. feat: 新增城市选择器，支持切换不同城市查看物流
+5. feat: 支持地址搜索和GPS定位功能
+6. feat: 配置项：AMAP_API_KEY（地图）、AMAP_GEO_KEY（地理编码）、MAP_SHIPMENT_LIMIT（物流条数限制）
+
 ## v1.19
 1. feat: 运营分析页面新增4种图表（热力图、柱状图、折线图、饼图）
 2. refactor: 图表模块解耦为独立文件（surface/scatter/wireframe/heatmap/bar/line/pie）
