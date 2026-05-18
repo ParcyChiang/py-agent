@@ -52,6 +52,20 @@
             background: white;
             cursor: pointer;
         }
+        .map-toolbar input[type="number"] {
+            width: 80px;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .map-toolbar label {
+            font-size: 14px;
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
         .info-window {
             padding: 8px;
         }
@@ -100,6 +114,7 @@
                 <select id="citySelect" onchange="onCityChange()">
                     <option value="">加载中...</option>
                 </select>
+                <label><span>数量:</span><input type="number" id="limitInput" value="100" min="1" max="500" onchange="onLimitChange()" /></label>
                 <input type="text" id="addressInput" placeholder="输入地址搜索..." />
                 <button onclick="searchAddress()">搜索</button>
                 <button onclick="locateUser()">定位</button>
@@ -132,6 +147,7 @@
 
         let markers = [];
         let lines = [];
+        var currentLimit = parseInt(localStorage.getItem('mapShipmentLimit')) || 100;
 
         // 状态颜色映射
         const statusColors = {
@@ -175,6 +191,8 @@
                         });
                         // 默认选择杭州
                         select.value = '杭州';
+                        // 设置数量输入框
+                        document.getElementById('limitInput').value = currentLimit;
                         // 加载完城市后加载物流数据
                         loadShipmentData();
                     }
@@ -183,6 +201,18 @@
         }
 
         // 城市切换
+        function onCityChange() {
+            clearMarkers();
+            loadShipmentData();
+        }
+
+        // 数量切换
+        function onLimitChange() {
+            currentLimit = parseInt(document.getElementById('limitInput').value) || 100;
+            localStorage.setItem('mapShipmentLimit', currentLimit);
+            clearMarkers();
+            loadShipmentData();
+        }
         function onCityChange() {
             clearMarkers();
             loadShipmentData();
@@ -225,9 +255,9 @@
         // 加载物流数据
         function loadShipmentData() {
             var city = document.getElementById('citySelect').value;
-            var url = '/api/map/shipments';
+            var url = '/api/map/shipments?limit=' + currentLimit;
             if (city) {
-                url += '?city=' + encodeURIComponent(city);
+                url += '&city=' + encodeURIComponent(city);
             }
             fetch(url)
                 .then(res => res.json())

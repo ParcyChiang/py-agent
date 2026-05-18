@@ -26,12 +26,17 @@ class MapHttp:
 
     def get_shipments(self):
         """获取用于地图展示的物流数据"""
-        city = request.args.get('city', '杭州')  # 默认杭州
+        city = request.args.get('city', '')  # 默认全部城市
+        # 前端传入的 limit 优先，否则使用配置的默认值
+        limit = request.args.get('limit', type=int) or Config.MAP_SHIPMENT_LIMIT
         shipments, _ = self.shipment_service.get_shipments(limit=1000)
-        # 过滤与该城市相关的物流（起点或终点）
-        filtered = [s for s in shipments if s.get('origin_city') == city or s.get('destination_city') == city]
-        # 限制条数（默认100）
-        filtered = filtered[:Config.MAP_SHIPMENT_LIMIT]
+        # 如果选择了城市，则过滤与该城市相关的物流（起点或终点）
+        if city:
+            filtered = [s for s in shipments if s.get('origin_city') == city or s.get('destination_city') == city]
+        else:
+            filtered = shipments
+        # 限制条数
+        filtered = filtered[:limit]
         data = [{
             'id': s.get('id'),
             'origin': s.get('origin'),
