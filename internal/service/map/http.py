@@ -18,6 +18,7 @@ class MapHttp:
         """注册地图路由"""
         app.add_url_rule('/page/map', endpoint='page_map', view_func=login_required(self.page_map))
         app.add_url_rule('/api/map/shipments', endpoint='get_map_shipments', view_func=login_required(self.get_shipments), methods=['GET'])
+        app.add_url_rule('/api/map/cities', endpoint='get_cities', view_func=login_required(self.get_cities), methods=['GET'])
 
     def page_map(self):
         """地图页面"""
@@ -41,3 +42,8 @@ class MapHttp:
             'courier_company': s.get('courier_company'),
         } for s in filtered]
         return success(data={'data': data})
+
+    def get_cities(self):
+        """获取所有城市列表"""
+        cities = self.shipment_service.get_cities()
+        return success(data={'data': cities})

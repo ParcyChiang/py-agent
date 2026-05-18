@@ -44,6 +44,14 @@
         .map-toolbar button:hover {
             background: #4338CA;
         }
+        .map-toolbar select {
+            padding: 10px 16px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+        }
         .info-window {
             padding: 8px;
         }
@@ -89,6 +97,9 @@
 
         <section class="hero">
             <div class="map-toolbar">
+                <select id="citySelect" onchange="onCityChange()">
+                    <option value="">加载中...</option>
+                </select>
                 <input type="text" id="addressInput" placeholder="输入地址搜索..." />
                 <button onclick="searchAddress()">搜索</button>
                 <button onclick="locateUser()">定位</button>
@@ -137,6 +148,43 @@
         // 初始化地理编码器
         function initGeocoder() {
             console.log('Geocoder initialized');
+            // loadCities 会自动调用 loadShipmentData
+            loadCities();
+        }
+
+        // 加载城市列表
+        function loadCities() {
+            console.log('开始加载城市列表');
+            fetch('/api/map/cities')
+                .then(res => {
+                    console.log('城市API响应状态:', res.status);
+                    return res.json();
+                })
+                .then(res => {
+                    console.log('城市API返回:', res);
+                    // 兼容不同的响应格式
+                    var data = res.data && res.data.data ? res.data.data : (res.data || []);
+                    if (data.length > 0) {
+                        var select = document.getElementById('citySelect');
+                        select.innerHTML = '<option value="">全部城市</option>';
+                        data.forEach(function(city) {
+                            var option = document.createElement('option');
+                            option.value = city;
+                            option.textContent = city;
+                            select.appendChild(option);
+                        });
+                        // 默认选择杭州
+                        select.value = '杭州';
+                        // 加载完城市后加载物流数据
+                        loadShipmentData();
+                    }
+                })
+                .catch(err => console.error('加载城市失败:', err));
+        }
+
+        // 城市切换
+        function onCityChange() {
+            clearMarkers();
             loadShipmentData();
         }
 
@@ -176,12 +224,17 @@
 
         // 加载物流数据
         function loadShipmentData() {
-            fetch('/api/map/shipments')
+            var city = document.getElementById('citySelect').value;
+            var url = '/api/map/shipments';
+            if (city) {
+                url += '?city=' + encodeURIComponent(city);
+            }
+            fetch(url)
                 .then(res => res.json())
                 .then(res => {
                     console.log('API返回:', res);
                     // 兼容不同的响应格式
-                    let data = res.data && res.data.data ? res.data.data : (res.data || []);
+                    var data = res.data && res.data.data ? res.data.data : (res.data || []);
                     if (Array.isArray(data)) {
                         renderShipments(data);
                     } else {
@@ -317,24 +370,32 @@
         // 搜索地址
         function searchAddress() {
             const keyword = document.getElementById('addressInput').value;
-            if (!keyword || !geocoder) return;
+            if (!keyword) return;
 
-            geocoder.getLocation(keyword, function(status, result) {
-                if (status === 'complete' && result.geocodes.length) {
-                    const location = result.geocodes[0].location;
-                    map.setCenter(location);
-                    map.setZoom(15);
+            var url = 'https://restapi.amap.com/v3/geocode/geo?address=' + encodeURIComponent(keyword) + '&key=' + GEO_KEY;
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', url, true);
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var response = JSON.parse(xhr.responseText);
+                    if (response.status === '1' && response.geocodes && response.geocodes.length > 0) {
+                        var location = response.geocodes[0].location.split(',');
+                        var lngLat = new AMap.LngLat(parseFloat(location[0]), parseFloat(location[1]));
+                        map.setCenter(lngLat);
+                        map.setZoom(15);
 
-                    const marker = new AMap.Marker({
-                        position: location,
-                        title: keyword
-                    });
-                    map.add(marker);
-                    markers.push(marker);
-                } else {
-                    alert('未找到该地址');
+                        var marker = new AMap.Marker({
+                            position: lngLat,
+                            title: keyword
+                        });
+                        map.add(marker);
+                        markers.push(marker);
+                    } else {
+                        alert('未找到该地址');
+                    }
                 }
-            });
+            };
+            xhr.send();
         }
 
         // 定位用户

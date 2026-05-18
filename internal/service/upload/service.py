@@ -58,3 +58,14 @@ class ShipmentService:
 
         events = self.shipment_dao.get_shipment_events(shipment_id)
         return shipment, events
+
+    def get_cities(self) -> List[str]:
+        """获取所有城市列表"""
+        shipments, _ = self.shipment_dao.get_all_shipments(limit=10000)
+        cities = set()
+        for s in shipments:
+            if s.get('origin_city'):
+                cities.add(s.get('origin_city'))
+            if s.get('destination_city'):
+                cities.add(s.get('destination_city'))
+        return sorted(list(cities))
