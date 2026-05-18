@@ -38,6 +38,10 @@ class AnalyzeService:
                 'surface_3d': chart_data['surface_3d'],
                 'scatter_3d': chart_data['scatter_3d'],
                 'wireframe_3d': chart_data['wireframe_3d'],
+                'heatmap': chart_data['heatmap'],
+                'bar_chart': chart_data['bar_chart'],
+                'line_chart': chart_data['line_chart'],
+                'pie_chart': chart_data['pie_chart'],
                 'data_info': chart_data['data_info'],
                 'daily_trend': daily_trend
             }

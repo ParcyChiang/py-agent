@@ -1,4 +1,8 @@
 ## py-agent搭建Log
+## v1.19
+1. feat: 运营分析页面新增4种图表（热力图、柱状图、折线图、饼图）
+2. refactor: 图表模块解耦为独立文件（surface/scatter/wireframe/heatmap/bar/line/pie）
+
 ## v1.18
 1. refactor: 曲面图生成代码重构
 

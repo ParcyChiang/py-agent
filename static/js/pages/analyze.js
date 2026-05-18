@@ -57,6 +57,38 @@ function display3DCharts(chartData) {
         document.getElementById('wireframe3D').src = '';
         document.getElementById('wireframe3D').alt = '暂无三维线框图数据';
     }
+
+    // 显示热力图
+    if (chartData.heatmap) {
+        document.getElementById('heatmapChart').src = 'data:image/png;base64,' + chartData.heatmap;
+    } else {
+        document.getElementById('heatmapChart').src = '';
+        document.getElementById('heatmapChart').alt = '暂无热力图数据';
+    }
+
+    // 显示柱状图
+    if (chartData.bar_chart) {
+        document.getElementById('barChart').src = 'data:image/png;base64,' + chartData.bar_chart;
+    } else {
+        document.getElementById('barChart').src = '';
+        document.getElementById('barChart').alt = '暂无柱状图数据';
+    }
+
+    // 显示折线图
+    if (chartData.line_chart) {
+        document.getElementById('lineChart').src = 'data:image/png;base64,' + chartData.line_chart;
+    } else {
+        document.getElementById('lineChart').src = '';
+        document.getElementById('lineChart').alt = '暂无折线图数据';
+    }
+
+    // 显示饼图
+    if (chartData.pie_chart) {
+        document.getElementById('pieChart').src = 'data:image/png;base64,' + chartData.pie_chart;
+    } else {
+        document.getElementById('pieChart').src = '';
+        document.getElementById('pieChart').alt = '暂无饼图数据';
+    }
 }
 
 function displayDataInfo(dataInfo) {
